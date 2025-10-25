@@ -9,3 +9,7 @@ releases/
 .env
 .idea/
 .vscode/
+gmail-tokens.json
+
+# User-specific rules
+user-rules.json

@@ -9,6 +9,16 @@
     "start": "electron .",
     "build": "electron-builder --dir"
   },
+  "dependencies": {
+    "node-fetch": "^2.6.1",
+    "active-win": "^8.2.1",
+    "axios": "^1.12.2",
+    "dotenv": "^17.2.3",
+    "googleapis": "^131.0.0",
+    "lru-cache": "^11.2.2",
+    "string-similarity": "^4.0.4",
+    "whoiser": "^2.0.0-beta.9"
+  },
   "devDependencies": {
     "electron": "^29.1.0",
     "electron-builder": "^24.6.4"

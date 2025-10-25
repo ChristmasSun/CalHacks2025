@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cluely Control Panel</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        color: #333;
+      }
+
+      .panel {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        color: #667eea;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+
+      .subtitle {
+        text-align: center;
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 25px;
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 20px;
+      }
+
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #6c757d;
+      }
+
+      .status-dot.active {
+        background: #10b981;
+        animation: pulse 2s infinite;
+      }
+
+      .status-text {
+        font-weight: 600;
+        color: #333;
+      }
+
+      .control-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 25px;
+      }
+
+      button {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+      }
+
+      .start-btn {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+      }
+
+      .start-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+      }
+
+      .stop-btn {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+      }
+
+      .stop-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+      }
+
+      .scan-btn {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+      }
+
+      .scan-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+      }
+
+      .latest-scan {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+      }
+
+      .latest-scan h3 {
+        font-size: 0.9rem;
+        color: #667eea;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .scan-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .scan-risk {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .risk-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+      }
+
+      .risk-label {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+        border-radius: 5px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .scan-reason {
+        font-size: 0.85rem;
+        color: #555;
+        line-height: 1.5;
+        margin-top: 5px;
+      }
+
+      .no-scan {
+        color: #999;
+        font-style: italic;
+        font-size: 0.9rem;
+      }
+
+      .gmail-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 20px;
+      }
+
+      .gmail-section h3 {
+        font-size: 0.9rem;
+        color: #667eea;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .gmail-status {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 10px;
+      }
+
+      .gmail-btn {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        width: 100%;
+      }
+
+      .gmail-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+      }
+
+      .gmail-btn.connected {
+        background: linear-gradient(135deg, #10b981, #059669);
+      }
+
+      .contact-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 20px;
+      }
+
+      .contact-section h3 {
+        font-size: 0.9rem;
+        color: #667eea;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .contact-section textarea {
+        width: 100%;
+        min-height: 80px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 0.85rem;
+        resize: vertical;
+        margin-bottom: 10px;
+      }
+
+      .verify-btn {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: white;
+        width: 100%;
+      }
+
+      .verify-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+      }
+
+      .gmail-messages {
+        margin-top: 10px;
+        max-height: 150px;
+        overflow-y: auto;
+      }
+
+      .gmail-message {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        font-size: 0.8rem;
+      }
+
+      .gmail-message h4 {
+        font-size: 0.85rem;
+        color: #333;
+        margin-bottom: 5px;
+      }
+
+      .gmail-message .from {
+        color: #666;
+        font-size: 0.75rem;
+        margin-bottom: 5px;
+      }
+
+      .gmail-message .reasons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 5px;
+      }
+
+      .gmail-message .reason-tag {
+        background: #fef3c7;
+        color: #92400e;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <h1>Cluely Monitor</h1>
+      <p class="subtitle">Real-time scam detection</p>
+
+      <div class="status-indicator">
+        <div id="status-dot" class="status-dot"></div>
+        <span id="status-text" class="status-text">Inactive</span>
+      </div>
+
+      <div class="control-buttons">
+        <button id="start-btn" class="start-btn">Start Monitoring</button>
+        <button id="stop-btn" class="stop-btn" disabled>Stop Monitoring</button>
+        <button id="scan-btn" class="scan-btn">Manual Scan</button>
+      </div>
+
+      <div class="latest-scan">
+        <h3>Latest Scan</h3>
+        <div id="scan-info" class="scan-info">
+          <p class="no-scan">No scans yet</p>
+        </div>
+      </div>
+
+      <!-- Gmail Integration -->
+      <div class="gmail-section">
+        <h3>Gmail Monitor</h3>
+        <p id="gmail-status" class="gmail-status">Not connected</p>
+        <button id="gmail-btn" class="gmail-btn">Connect Gmail</button>
+        <div id="gmail-messages" class="gmail-messages"></div>
+      </div>
+
+      <!-- Contact Verification -->
+      <div class="contact-section">
+        <h3>Verify Contact</h3>
+        <p style="font-size: 0.8rem; color: #666; margin-bottom: 10px;">
+          Paste LinkedIn message, email, or text with name + email
+        </p>
+        <textarea id="contact-text" placeholder="Paste text here..."></textarea>
+        <button id="verify-btn" class="verify-btn">Verify Contact</button>
+        <div id="verify-result" style="margin-top: 10px; font-size: 0.85rem;"></div>
+      </div>
+    </div>
+
+    <script src="./control.js"></script>
+  </body>
+</html>

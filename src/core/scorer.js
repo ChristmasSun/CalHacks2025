@@ -1,17 +1,43 @@
+/**
+ * Risk Scoring Engine
+ *
+ * SCORING PHILOSOPHY:
+ * We HEAVILY prioritize URLScan.io's expert verdicts over custom heuristics.
+ * URLScan.io analyzes millions of URLs with 70+ security engines in isolated VMs.
+ *
+ * Priority levels:
+ * 1. URLScan.io malicious/phishing/malware verdicts (score 90-95) - TRUST THE EXPERTS
+ * 2. URLScan.io risk score (0-100) - Use as baseline
+ * 3. Domain age, DOM flags, transcripts - Small adjustments only
+ * 4. Redirects, mock signals - Informational weight only
+ *
+ * This approach:
+ * - Reduces false positives (URLScan.io is battle-tested)
+ * - Makes scoring more transparent and explainable
+ * - Avoids double-counting signals URLScan.io already considers
+ */
+
 const { RiskLevels, buildAssessment } = require('../shared/types');
 
 const KEYWORD_FLAGS = ['urgent payment', 'irs', 'limited offer', 'gift card', 'wire transfer'];
 
 function scoreFromDomainAge(domainAgeDays) {
-  if (!Number.isFinite(domainAgeDays)) {
+  // Handle null/undefined/NaN (when URLScan.io doesn't provide domain age)
+  if (!Number.isFinite(domainAgeDays) || domainAgeDays === null) {
     return { score: 0, note: null };
   }
+
+  // Very young domains are highly suspicious
   if (domainAgeDays < 14) {
-    return { score: 35, note: `Domain is only ${domainAgeDays} days old.` };
+    return { score: 35, note: `Domain is only ${domainAgeDays} days old (VERY NEW).` };
   }
+
+  // Moderately young domains warrant caution
   if (domainAgeDays < 45) {
     return { score: 20, note: `Domain age (${domainAgeDays} days) is relatively young.` };
   }
+
+  // Older domains get no penalty
   return { score: 0, note: null };
 }
 
@@ -25,18 +51,8 @@ function scoreFromRedirects(redirects = []) {
   return { score: 12, note: `Detected ${redirects.length} redirects.` };
 }
 
-function scoreFromKeywords(keywords = []) {
-  const hits = keywords.filter((keyword) =>
-    KEYWORD_FLAGS.some((flag) => keyword.toLowerCase().includes(flag))
-  );
-  if (!hits.length) {
-    return { score: 0, note: null };
-  }
-  return {
-    score: Math.min(24, hits.length * 8),
-    note: `Flagged keywords: ${hits.join(', ')}.`
-  };
-}
+// NOTE: Keyword matching removed - URLScan.io already analyzes page content
+// and flags suspicious keywords. No need to duplicate this logic.
 
 function scoreFromTranscript(transcript = '') {
   if (!transcript) {
@@ -71,46 +87,119 @@ function scoreRisk(enriched) {
     transcript: enriched.transcript ?? null
   };
 
-  let totalScore = 20; // baseline caution
+  const urlscanSecurity = enriched.sandboxMetadata?.security;
+  let totalScore = 0;
 
-  const domainAgeSignal = scoreFromDomainAge(enriched.brightData?.whois?.domainAgeDays);
-  if (domainAgeSignal.note) {
-    explanations.push(domainAgeSignal.note);
-    totalScore += domainAgeSignal.score;
+  // ========================================
+  // PRIORITY 1: URLScan.io Verdicts (TRUST THE EXPERTS)
+  // ========================================
+
+  // If URLScan.io definitively says malicious, that's HIGH RISK
+  if (urlscanSecurity?.malicious) {
+    totalScore = 95; // Almost certain threat
+    explanations.push('⚠️ URLScan.io flagged this URL as MALICIOUS.');
+  }
+  // If URLScan.io detects phishing or malware, also HIGH RISK
+  else if (urlscanSecurity?.hasPhishing) {
+    totalScore = 90;
+    explanations.push('⚠️ Phishing attempt detected by URLScan.io VM analysis.');
+  }
+  else if (urlscanSecurity?.hasMalware) {
+    totalScore = 90;
+    explanations.push('⚠️ Malware distribution detected by URLScan.io.');
+  }
+  // Use URLScan.io's own risk score as baseline (0-100)
+  else if (urlscanSecurity?.score !== undefined && urlscanSecurity.score > 0) {
+    totalScore = urlscanSecurity.score;
+    if (urlscanSecurity.score > 50) {
+      explanations.push(`URLScan.io risk score: ${urlscanSecurity.score}/100`);
+    }
+  }
+  // No URLScan data available - start with neutral baseline
+  else {
+    totalScore = 30; // Slight caution by default
+    explanations.push('No URLScan.io verdict available - limited analysis.');
   }
 
-  const redirectSignal = scoreFromRedirects(enriched.brightData?.redirects);
-  if (redirectSignal.note) {
-    explanations.push(redirectSignal.note);
-    totalScore += redirectSignal.score;
+  // ========================================
+  // PRIORITY 2: High-Value Signals (Small Adjustments)
+  // ========================================
+
+  // Only add domain age penalty if URLScan didn't already flag as malicious
+  if (totalScore < 80) {
+    const domainAgeSignal = scoreFromDomainAge(enriched.brightData?.whois?.domainAgeDays);
+    if (domainAgeSignal.note) {
+      explanations.push(domainAgeSignal.note);
+      // Reduce weight - URLScan.io already considers this
+      totalScore += Math.round(domainAgeSignal.score * 0.4); // 40% weight
+    }
   }
 
-  const keywordSignal = scoreFromKeywords(enriched.brightData?.keywordMatches);
-  if (keywordSignal.note) {
-    explanations.push(keywordSignal.note);
-    totalScore += keywordSignal.score;
-  }
-
-  if (enriched.agentFindings?.verdict === 'high-risk') {
-    totalScore += 25;
-    explanations.push('Fetch.ai agent rated this URL as high risk.');
-  } else if (enriched.agentFindings?.verdict === 'needs-review') {
-    totalScore += 12;
-    explanations.push('Agent suggests additional review before trusting this URL.');
-  }
-
+  // Suspicious DOM elements (login forms, etc.)
   if (enriched.sandboxMetadata?.domFlags?.length) {
     const count = enriched.sandboxMetadata.domFlags.length;
-    totalScore += Math.min(20, count * 7);
-    explanations.push(`Sandbox inspection flagged ${count} suspicious DOM elements.`);
+    const domScore = Math.min(15, count * 5); // Max 15 points
+    totalScore += domScore;
+    explanations.push(`Detected ${count} suspicious element(s) (login forms, credential inputs).`);
   }
 
+  // ========================================
+  // Bright Data Threat Intelligence
+  // ========================================
+  const brightDataIndicators = enriched.brightData?.indicators;
+  if (brightDataIndicators && totalScore < 85) {
+    // Apply Bright Data's risk score with moderate weight (URLScan.io is still primary)
+    const bdScore = brightDataIndicators.score || 0;
+
+    if (bdScore > 0) {
+      // Add 40% of Bright Data's score (max 40 points if BD score is 100)
+      const weightedBDScore = Math.round(bdScore * 0.4);
+      totalScore += weightedBDScore;
+
+      // Add specific explanations for detected indicators
+      if (brightDataIndicators.hasPasswordField || brightDataIndicators.hasCreditCardForm) {
+        explanations.push('⚠️ Bright Data detected credential/payment harvesting forms.');
+      }
+      if (brightDataIndicators.misleadingTitle) {
+        explanations.push('Bright Data flagged potential brand impersonation in page title.');
+      }
+      if (brightDataIndicators.urgencyLanguage) {
+        explanations.push('Bright Data detected urgency/pressure language (common in scams).');
+      }
+      if (brightDataIndicators.suspiciousScripts) {
+        explanations.push('Bright Data found obfuscated/suspicious JavaScript code.');
+      }
+      if (bdScore > 20 && !explanations.some(e => e.includes('Bright Data'))) {
+        explanations.push(`Bright Data threat analysis: ${bdScore}/100 risk score.`);
+      }
+    }
+  }
+
+  // Audio transcript analysis (for voice scams)
   const transcriptSignal = scoreFromTranscript(enriched.transcript?.transcript);
   if (transcriptSignal.note) {
     explanations.push(transcriptSignal.note);
     totalScore += transcriptSignal.score;
   }
 
+  // ========================================
+  // PRIORITY 3: Low-Value Signals (Informational Only)
+  // ========================================
+
+  // Redirects - informational only, minimal weight
+  const redirectSignal = scoreFromRedirects(enriched.sandboxMetadata?.redirects || enriched.brightData?.redirects);
+  if (redirectSignal.note && totalScore < 70) {
+    explanations.push(redirectSignal.note + ' (informational)');
+    totalScore += Math.round(redirectSignal.score * 0.3); // 30% weight
+  }
+
+  // Mock agent findings (currently fake data)
+  if (enriched.agentFindings?.verdict === 'high-risk' && totalScore < 70) {
+    totalScore += 10; // Reduced weight since it's mock data
+    explanations.push('Agent flagged as potentially risky.');
+  }
+
+  // Cap the final score at 100
   const risk_score = Math.min(100, Math.round(totalScore));
   const risk_level = deriveRiskLevel(risk_score);
 
