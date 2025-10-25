@@ -1,4 +1,7 @@
 const path = require('path');
+const fs = require('fs/promises');
+const http = require('http');
+const { google } = require('googleapis');
 const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage } = require('electron');
 const { LRUCache } = require('lru-cache');
 
@@ -14,10 +17,14 @@ process.on('unhandledRejection', (reason) => {
 
 const ALERT_DISPLAY_MS = 10000;
 const ALERT_MARGIN = 18;
+const GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
 let mainWindow;
 let tray;
 let alertTimer;
 let gmailConnected = false;
+let gmailTokenPath;
+let gmailTokens = null;
+let gmailProfile = null;
 
 // Auto-scanning components
 let clipboardMonitor;
@@ -29,6 +36,196 @@ const scanCache = new LRUCache({
 
 // Load user whitelist/blacklist rules
 urlFilter.loadUserRules();
+
+function assertGoogleCredentials() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      'Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET. Please add them to your environment or .env file.'
+    );
+  }
+
+  return { clientId, clientSecret };
+}
+
+function createOAuthClient(redirectUri) {
+  const { clientId, clientSecret } = assertGoogleCredentials();
+  return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+}
+
+async function fetchGmailProfile(oauthClient) {
+  const gmail = google.gmail({ version: 'v1', auth: oauthClient });
+  const profile = await gmail.users.getProfile({ userId: 'me' });
+  return {
+    email: profile.data?.emailAddress || null,
+    messageTotal: profile.data?.messagesTotal || 0
+  };
+}
+
+async function persistGmailTokens(tokens, redirectUri) {
+  if (!gmailTokenPath) {
+    throw new Error('Gmail token path is not initialized.');
+  }
+
+  const payload = {
+    ...tokens,
+    redirectUri,
+    storedAt: new Date().toISOString()
+  };
+
+  await fs.writeFile(gmailTokenPath, JSON.stringify(payload, null, 2), 'utf8');
+}
+
+async function restoreGmailSession() {
+  if (!gmailTokenPath) {
+    return false;
+  }
+
+  try {
+    const raw = await fs.readFile(gmailTokenPath, 'utf8');
+    const stored = JSON.parse(raw);
+    if (!stored?.refresh_token) {
+      return false;
+    }
+
+    const redirectUri = stored.redirectUri || process.env.GOOGLE_REDIRECT_URI || 'http://127.0.0.1';
+    const oauthClient = createOAuthClient(redirectUri);
+    oauthClient.setCredentials(stored);
+
+    const profile = await fetchGmailProfile(oauthClient);
+    gmailTokens = stored;
+    gmailProfile = profile;
+    gmailConnected = true;
+    return true;
+  } catch (error) {
+    console.warn('[ScamShield] Failed to restore Gmail session:', error.message);
+    return false;
+  }
+}
+
+async function startGmailOAuthFlow() {
+  let authWindow;
+  let server;
+
+  const redirectUri = await new Promise((resolve, reject) => {
+    server = http.createServer();
+    server.on('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        reject(new Error('Unable to determine OAuth callback address.'));
+        return;
+      }
+      resolve(`http://127.0.0.1:${address.port}/oauth2callback`);
+    });
+  });
+
+  const oauthClient = createOAuthClient(redirectUri);
+  const authUrl = oauthClient.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: GMAIL_SCOPES
+  });
+
+  const authResult = await new Promise((resolve, reject) => {
+    let handled = false;
+
+    server.on('request', async (req, res) => {
+      if (!req.url) {
+        res.writeHead(400).end();
+        return;
+      }
+
+      if (!req.url.startsWith('/oauth2callback')) {
+        res.writeHead(404).end();
+        return;
+      }
+
+      const urlObj = new URL(req.url, redirectUri);
+      const errorParam = urlObj.searchParams.get('error');
+      const code = urlObj.searchParams.get('code');
+
+      if (errorParam) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Gmail authorization was denied. You can close this window.');
+        if (!handled) {
+          handled = true;
+          reject(new Error(`Google OAuth error: ${errorParam}`));
+        }
+        return;
+      }
+
+      if (!code) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Missing authorization code.');
+        if (!handled) {
+          handled = true;
+          reject(new Error('Google OAuth response did not include a code.'));
+        }
+        return;
+      }
+
+      try {
+        const { tokens } = await oauthClient.getToken(code);
+        oauthClient.setCredentials(tokens);
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(
+          '<html><body><h2>Gmail connected ✅</h2><p>You can close this window and return to Scam Shield.</p></body></html>'
+        );
+
+        if (!handled) {
+          handled = true;
+          resolve({ tokens, oauthClient });
+        }
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Authentication failed. Please try again.');
+        if (!handled) {
+          handled = true;
+          reject(error);
+        }
+      }
+    });
+
+    authWindow = new BrowserWindow({
+      width: 520,
+      height: 640,
+      resizable: false,
+      title: 'Connect Gmail',
+      autoHideMenuBar: true,
+      backgroundColor: '#ffffff',
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+
+    authWindow.on('closed', () => {
+      if (!handled) {
+        handled = true;
+        reject(new Error('Gmail sign-in window was closed before completion.'));
+      }
+    });
+
+    authWindow.loadURL(authUrl);
+  });
+
+  await new Promise((resolve) => server.close(resolve));
+  if (authWindow && !authWindow.isDestroyed()) {
+    authWindow.close();
+  }
+
+  const profile = await fetchGmailProfile(authResult.oauthClient);
+  await persistGmailTokens(authResult.tokens, redirectUri);
+
+  gmailTokens = { ...authResult.tokens, redirectUri };
+  gmailProfile = profile;
+  gmailConnected = true;
+
+  return { email: profile.email };
+}
 
 function shouldDisplayAlert(assessment) {
   return assessment?.risk_level && assessment.risk_level !== 'low';
@@ -362,23 +559,30 @@ ipcMain.on('hide-alert', () => {
 });
 
 ipcMain.handle('connect-gmail', async () => {
-  if (gmailConnected) {
-    return { connected: true };
+  if (gmailConnected && gmailProfile?.email) {
+    return { connected: true, email: gmailProfile.email };
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  gmailConnected = true;
-
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('gmail-status', { connected: gmailConnected });
+  try {
+    const result = await startGmailOAuthFlow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('gmail-status', {
+        connected: true,
+        email: result.email
+      });
+    }
+    return { connected: true, email: result.email };
+  } catch (error) {
+    console.error('[ScamShield] Gmail connection failed:', error);
+    return { connected: false, error: error.message };
   }
-
-  return { connected: gmailConnected };
 });
 
-ipcMain.on('hide-dashboard', () => {
+ipcMain.handle('hide-dashboard', async () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     clearTimeout(alertTimer);
     mainWindow.hide();
+    return { hidden: true };
   }
+  return { hidden: false };
 });

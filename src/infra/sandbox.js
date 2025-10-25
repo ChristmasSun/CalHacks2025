@@ -140,6 +140,28 @@ function extractSecuritySignals(results) {
       .filter(Boolean)
   ).size;
 
+  // Extract domain metadata (age, registrar, etc.)
+  const domainMeta = {};
+
+  // URLScan.io provides domain age in days via page.domain_age
+  if (page.domain_age !== undefined && page.domain_age !== null) {
+    domainMeta.domainAgeDays = page.domain_age;
+  }
+
+  // Some scans include certificate/TLS info with domain creation date
+  if (page.tlsAge !== undefined && page.tlsAge !== null) {
+    domainMeta.tlsAgeDays = page.tlsAge;
+  }
+
+  // Registrar info sometimes available in lists
+  if (lists.domains && lists.domains.length > 0) {
+    const domainInfo = lists.domains.find(d => d.domain === page.domain);
+    if (domainInfo) {
+      domainMeta.registrar = domainInfo.registrar;
+      domainMeta.registrantCountry = domainInfo.country;
+    }
+  }
+
   return {
     url: page.url || results.task?.url,
     hostname: page.domain,
@@ -148,6 +170,7 @@ function extractSecuritySignals(results) {
     networkRequests,
     thirdPartyDomains,
     domFlags,
+    domainMeta, // Add domain metadata from URLScan
     verdicts: {
       overall: verdicts.overall || {},
       urlscan: verdicts.urlscan || {},

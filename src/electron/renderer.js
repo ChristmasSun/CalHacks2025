@@ -32,6 +32,7 @@ const STATUS_CONNECTED = 'Monitoring Gmail for suspicious links.';
 
 let gmailConnected = false;
 let gmailConnecting = false;
+let gmailAccountEmail = null;
 
 function setDashboardStatus(message) {
   if (dashboardStatus) {
@@ -85,15 +86,19 @@ function applyAlertStyling(level) {
   alertRoot.style.borderColor = `${tone}33`;
 }
 
-function updateGmailUI(connected) {
+function updateGmailUI(connected, email) {
   if (!connectGmailButton || !gmailStatusText) {
     return;
   }
+
   const previousState = gmailConnected;
   gmailConnected = Boolean(connected);
+  gmailAccountEmail = gmailConnected ? email || gmailAccountEmail : null;
 
   if (gmailConnected) {
-    gmailStatusText.textContent = 'Connected';
+    gmailStatusText.textContent = gmailAccountEmail
+      ? `Connected — ${gmailAccountEmail}`
+      : 'Connected';
     connectGmailButton.textContent = 'Connected';
     connectGmailButton.setAttribute('disabled', 'true');
     connectGmailButton.classList.add('connected');
@@ -135,8 +140,8 @@ async function handleGmailConnect() {
   try {
     const result = await window.scamShield.connectGmail();
     if (result?.connected) {
-      updateGmailUI(true);
-      setDashboardStatus('Monitoring Gmail for suspicious links.');
+      updateGmailUI(true, result.email);
+      setDashboardStatus(STATUS_CONNECTED);
     } else {
       setDashboardStatus('Could not connect to Gmail. Try again shortly.');
       connectGmailButton.removeAttribute('disabled');
@@ -190,7 +195,8 @@ function hideAlert() {
 
 function showDashboard(payload) {
   const connected = payload?.connected ?? gmailConnected;
-  updateGmailUI(connected);
+  const email = payload?.email ?? gmailAccountEmail;
+  updateGmailUI(connected, email);
   setDashboardVisible(true);
   hideAlert();
 }

@@ -3,15 +3,22 @@ const { RiskLevels, buildAssessment } = require('../shared/types');
 const KEYWORD_FLAGS = ['urgent payment', 'irs', 'limited offer', 'gift card', 'wire transfer'];
 
 function scoreFromDomainAge(domainAgeDays) {
-  if (!Number.isFinite(domainAgeDays)) {
+  // Handle null/undefined/NaN (when URLScan.io doesn't provide domain age)
+  if (!Number.isFinite(domainAgeDays) || domainAgeDays === null) {
     return { score: 0, note: null };
   }
+
+  // Very young domains are highly suspicious
   if (domainAgeDays < 14) {
-    return { score: 35, note: `Domain is only ${domainAgeDays} days old.` };
+    return { score: 35, note: `Domain is only ${domainAgeDays} days old (VERY NEW).` };
   }
+
+  // Moderately young domains warrant caution
   if (domainAgeDays < 45) {
     return { score: 20, note: `Domain age (${domainAgeDays} days) is relatively young.` };
   }
+
+  // Older domains get no penalty
   return { score: 0, note: null };
 }
 
