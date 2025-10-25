@@ -1,51 +1,34 @@
+// Preload script - Exposes safe IPC methods to renderer
 const { contextBridge, ipcRenderer } = require('electron');
-contextBridge.exposeInMainWorld('scamShield', {
-  analyze: (payload) => ipcRenderer.invoke('analyze-input', payload),
-  analyzeURL: (url) => ipcRenderer.invoke('analyze-input', { url }),
-  analyzeAudioFile: (filePath) => ipcRenderer.invoke('analyze-input', { audioFile: filePath }),
-  connectGmail: () => ipcRenderer.invoke('connect-gmail'),
-  onAlert: (callback) => {
-    if (typeof callback !== 'function') {
-      return () => {};
-    }
-    const listener = (_event, payload) => callback(payload);
-    ipcRenderer.on('show-alert', listener);
-    return () => ipcRenderer.removeListener('show-alert', listener);
+
+// Expose protected methods for monitoring
+contextBridge.exposeInMainWorld('electronAPI', {
+  // Start real-time monitoring
+  startMonitoring: () => ipcRenderer.invoke('start-monitoring'),
+
+  // Stop monitoring
+  stopMonitoring: () => ipcRenderer.invoke('stop-monitoring'),
+
+  // Manual scan trigger
+  manualScan: () => ipcRenderer.invoke('manual-scan'),
+
+  // Listen for scan results
+  onScanResult: (callback) => {
+    ipcRenderer.on('scan-result', (event, result) => callback(result));
   },
-  onAnalysisComplete: (callback) => {
-    if (typeof callback !== 'function') {
-      return () => {};
-    }
-    const listener = (_event, payload) => callback(payload);
-    ipcRenderer.on('analysis-complete', listener);
-    return () => ipcRenderer.removeListener('analysis-complete', listener);
+
+  // Listen for warning display (for overlay window)
+  onShowWarning: (callback) => {
+    ipcRenderer.on('show-warning', (event, warning) => callback(warning));
   },
-  onBootstrap: (callback) => {
-    if (typeof callback !== 'function') {
-      return () => {};
-    }
-    const listener = (_event, payload) => callback(payload);
-    ipcRenderer.on('bootstrap', listener);
-    return () => ipcRenderer.removeListener('bootstrap', listener);
+
+  // Listen for clear warnings (for overlay window)
+  onClearWarnings: (callback) => {
+    ipcRenderer.on('clear-warnings', () => callback());
   },
-  onGmailStatus: (callback) => {
-    if (typeof callback !== 'function') {
-      return () => {};
-    }
-    const listener = (_event, payload) => callback(payload);
-    ipcRenderer.on('gmail-status', listener);
-    return () => ipcRenderer.removeListener('gmail-status', listener);
-  },
-  onShowDashboard: (callback) => {
-    if (typeof callback !== 'function') {
-      return () => {};
-    }
-    const listener = (_event, payload) => callback(payload);
-    ipcRenderer.on('show-dashboard', listener);
-    return () => ipcRenderer.removeListener('show-dashboard', listener);
-  },
-  dismissAlert: () => ipcRenderer.send('hide-alert'),
-  hideDashboard: () => ipcRenderer.invoke('hide-dashboard'),
-  refreshGmail: () => ipcRenderer.invoke('refresh-gmail'),
-  analyzeText: (text) => ipcRenderer.invoke('analyze-text', { text })
+
+  // Set overlay window clickability (for overlay window)
+  setOverlayClickable: (clickable) => {
+    ipcRenderer.send('set-overlay-clickable', clickable);
+  }
 });

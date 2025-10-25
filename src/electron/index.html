@@ -2,507 +2,56 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scam Shield Alert</title>
-    <style>
-      :root {
-        font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #0f172a;
-        background: transparent;
-      }
-
-      body {
-        margin: 0;
-        padding: 0;
-        background: transparent;
-      }
-
-      .alert-root {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        box-sizing: border-box;
-        padding: 1px;
-        border-radius: 20px;
-        border: 1px solid transparent;
-        backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
-        transition: opacity 180ms ease, transform 220ms ease;
-        opacity: 0;
-        transform: translateY(-16px);
-        pointer-events: auto;
-        z-index: 2;
-      }
-
-      .alert-card {
-        position: relative;
-        border-radius: 20px;
-        padding: 20px;
-        background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(226, 241, 255, 0.92));
-        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
-        overflow: hidden;
-        transition: transform 180ms ease, box-shadow 200ms ease;
-      }
-
-      .accent-pill {
-        position: absolute;
-        inset: auto auto -40px 50%;
-        transform: translateX(-50%);
-        width: 170px;
-        height: 170px;
-        border-radius: 50%;
-        background: rgba(37, 99, 235, 0.65);
-        filter: blur(60px);
-        opacity: 0.85;
-        pointer-events: none;
-        transition: background 180ms ease, box-shadow 180ms ease;
-      }
-
-      .alert-hidden {
-        opacity: 0;
-        transform: translateY(-16px);
-      }
-
-      .alert-visible {
-        opacity: 1;
-        transform: translateY(0);
-      }
-
-      .alert-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 14px;
-      }
-
-      .badge {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #1d4ed8;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-
-      #dismiss-alert {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        border: none;
-        background: rgba(15, 23, 42, 0.08);
-        color: #1e293b;
-        cursor: pointer;
-        transition: background 180ms ease, transform 180ms ease;
-        position: relative;
-        z-index: 10; /* Make sure button is above other elements */
-      }
-
-      #dismiss-alert:hover {
-        background: rgba(15, 23, 42, 0.12);
-        transform: translateY(-1px);
-      }
-
-      .score-row {
-        display: flex;
-        align-items: baseline;
-        gap: 12px;
-      }
-
-      #alert-score {
-        font-size: 2.9rem;
-        font-weight: 700;
-        color: #1d4ed8;
-        line-height: 1;
-      }
-
-      #alert-level {
-        font-size: 0.95rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: rgba(15, 23, 42, 0.68);
-        font-weight: 600;
-      }
-
-      #alert-summary {
-        margin: 12px 0 16px;
-        font-size: 0.95rem;
-        line-height: 1.4;
-        color: rgba(15, 23, 42, 0.72);
-      }
-
-      .alert-list {
-        margin: 0;
-        padding-left: 20px;
-        display: grid;
-        gap: 6px;
-        color: rgba(15, 23, 42, 0.72);
-        font-size: 0.85rem;
-      }
-
-      .alert-footer {
-        margin-top: 18px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .alert-hover .alert-card {
-        transform: translateY(-2px);
-        box-shadow: 0 32px 80px rgba(15, 23, 42, 0.22);
-      }
-
-      .dashboard-root {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 12px;
-        transition: opacity 180ms ease;
-        z-index: 1;
-      }
-
-      .dashboard-hidden {
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      .dashboard-card {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        border-radius: 20px;
-        padding: 20px 22px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(231, 244, 255, 0.94));
-        box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
-        overflow: hidden;
-      }
-
-      .dashboard-card .accent-pill {
-        position: absolute;
-        inset: auto -40px -40px auto;
-        width: 180px;
-        height: 180px;
-        border-radius: 50%;
-        background: rgba(37, 99, 235, 0.5);
-        filter: blur(70px);
-        opacity: 0.8;
-        pointer-events: none;
-      }
-
-      .dashboard-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-      }
-
-      .dashboard-header h1 {
-        margin: 0 0 6px;
-        font-size: 1.1rem;
-        color: #0f172a;
-      }
-
-      .dashboard-subtitle {
-        margin: 0;
-        font-size: 0.82rem;
-        color: rgba(15, 23, 42, 0.6);
-      }
-
-      .dashboard-body {
-        margin-top: 18px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        max-height: calc(100vh - 100px);
-        overflow-y: auto;
-        padding-right: 4px;
-      }
-
-      /* Scrollbar styling */
-      .dashboard-body::-webkit-scrollbar {
-        width: 6px;
-      }
-
-      .dashboard-body::-webkit-scrollbar-track {
-        background: rgba(148, 163, 184, 0.1);
-        border-radius: 3px;
-      }
-
-      .dashboard-body::-webkit-scrollbar-thumb {
-        background: rgba(148, 163, 184, 0.3);
-        border-radius: 3px;
-      }
-
-      .dashboard-body::-webkit-scrollbar-thumb:hover {
-        background: rgba(148, 163, 184, 0.5);
-      }
-
-      .summary-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: rgba(37, 99, 235, 0.08);
-        border-radius: 999px;
-        padding: 6px 12px;
-        font-size: 0.78rem;
-        color: #1d4ed8;
-        font-weight: 600;
-      }
-
-      .summary-chip .chip-label {
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        font-size: 0.72rem;
-      }
-
-      .dashboard-copy {
-        margin: 0;
-        font-size: 0.82rem;
-        line-height: 1.4;
-        color: rgba(15, 23, 42, 0.7);
-      }
-
-      .primary-button {
-        padding: 10px 16px;
-        border-radius: 10px;
-        border: none;
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: #f8fafc;
-        background: linear-gradient(135deg, #2563eb, #38bdf8);
-        cursor: pointer;
-        transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
-        position: relative;
-        z-index: 10; /* Make sure button is above accent pill */
-      }
-
-      .primary-button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.22);
-      }
-
-      .primary-button[disabled] {
-        opacity: 0.6;
-        cursor: progress;
-        box-shadow: none;
-      }
-
-      .primary-button.connected {
-        background: linear-gradient(135deg, #0ea5e9, #38bdf8);
-        cursor: default;
-      }
-
-      .primary-button.connected[disabled] {
-        opacity: 1;
-        cursor: default;
-      }
-
-      .ghost-button {
-        border: none;
-        background: rgba(15, 23, 42, 0.08);
-        color: #1e293b;
-        font-size: 0.78rem;
-        padding: 6px 10px;
-        border-radius: 20px;
-        cursor: pointer;
-        transition: background 0.18s ease, transform 0.18s ease;
-        position: relative;
-        z-index: 10; /* Make sure button is above accent pill */
-      }
-
-      .ghost-button:hover {
-        background: rgba(15, 23, 42, 0.1);
-        transform: translateY(-1px);
-      }
-
-      .dashboard-status {
-        margin: 0;
-        font-size: 0.74rem;
-        color: rgba(15, 23, 42, 0.5);
-      }
-
-      .gmail-section {
-        border-top: 1px solid rgba(148, 163, 184, 0.18);
-        padding-top: 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      .gmail-section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      .gmail-section-header span {
-        font-size: 0.82rem;
-        font-weight: 600;
-        color: rgba(15, 23, 42, 0.75);
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-
-      .gmail-section-actions {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.72rem;
-        color: rgba(15, 23, 42, 0.5);
-      }
-
-      .gmail-refreshed {
-        font-size: 0.72rem;
-      }
-
-      .gmail-results {
-        display: grid;
-        gap: 10px;
-        max-height: 120px;
-        overflow-y: auto;
-        padding-right: 4px;
-      }
-
-      .gmail-item {
-        background: rgba(255, 255, 255, 0.9);
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 12px;
-        padding: 10px 12px;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-        display: grid;
-        gap: 6px;
-      }
-
-      .gmail-item h4 {
-        margin: 0;
-        font-size: 0.85rem;
-        color: #0f172a;
-      }
-
-      .gmail-item .gmail-meta {
-        font-size: 0.72rem;
-        color: rgba(15, 23, 42, 0.55);
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-      }
-
-      .gmail-item .gmail-snippet {
-        font-size: 0.78rem;
-        color: rgba(15, 23, 42, 0.68);
-      }
-
-      .gmail-item .gmail-reasons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-
-      .gmail-item .gmail-reason {
-        font-size: 0.7rem;
-        background: rgba(37, 99, 235, 0.12);
-        color: #1d4ed8;
-        border-radius: 999px;
-        padding: 3px 8px;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-
-      .gmail-results .empty-state {
-        font-size: 0.78rem;
-        color: rgba(15, 23, 42, 0.55);
-        margin: 0;
-      }
-
-      #alert-url {
-        font-size: 0.82rem;
-        color: rgba(15, 23, 42, 0.5);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      #alert-timestamp {
-        font-size: 0.75rem;
-        color: rgba(15, 23, 42, 0.55);
-      }
-    </style>
+    <title>Cluely Scam Detector</title>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div id="dashboard-root" class="dashboard-root">
-      <div class="dashboard-card">
-        <span class="accent-pill" id="dashboard-accent"></span>
-        <header class="dashboard-header">
-          <div>
-            <h1>Scam Shield</h1>
-            <p class="dashboard-subtitle">Stay ahead of suspicious links across email and the web.</p>
+    <div class="container">
+      <header>
+        <h1>Cluely Scam Detector</h1>
+      </header>
+
+      <button id="scan-button" class="scan-btn">Scan Screen</button>
+
+      <div id="result-container" class="result-container hidden">
+        <h2>Detection Result</h2>
+        <div class="result-content">
+          <div class="risk-score">
+            <span class="label">Risk Score:</span>
+            <span id="risk-score" class="value">--</span>
           </div>
-          <button id="hide-dashboard" class="ghost-button" aria-label="Hide dashboard">Hide</button>
-        </header>
-        <section class="dashboard-body">
-          <div class="summary-chip">
-            <span class="chip-label">Gmail Monitor</span>
-            <span id="gmail-status-text">Not connected</span>
+          <div class="reason">
+            <span class="label">Reason:</span>
+            <p id="reason-text">--</p>
           </div>
-      <p class="dashboard-copy">
-        Connect Gmail to automatically scan visible emails and URLs for phishing or malware indicators.
-      </p>
-      <button id="connect-gmail" class="primary-button">Connect Gmail</button>
-      <p id="dashboard-status" class="dashboard-status">No scans yet. Hit the tray menu to try a sample URL.</p>
-      <div class="gmail-section">
-        <div class="gmail-section-header">
-          <span>Verify Contact</span>
         </div>
-        <p class="dashboard-copy" style="font-size: 0.76rem; margin: 0 0 8px;">
-          Paste a LinkedIn message, email, or text with name + email to verify the person is real.
-        </p>
-        <textarea
-          id="text-analysis-input"
-          placeholder="Paste text here (e.g., LinkedIn message, email signature)..."
-          style="width: 100%; min-height: 60px; padding: 8px 10px; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; font-size: 0.82rem; font-family: inherit; resize: vertical; background: rgba(255, 255, 255, 0.8);"
-        ></textarea>
-        <button id="analyze-text-button" class="primary-button" type="button" style="width: 100%; margin-top: 8px;">
-          Verify Contact
-        </button>
-        <div id="text-analysis-results" style="margin-top: 12px;"></div>
       </div>
 
-      <div class="gmail-section">
-        <div class="gmail-section-header">
-          <span>Suspicious Inbox Alerts</span>
-          <div class="gmail-section-actions">
-            <span id="gmail-refreshed" class="gmail-refreshed"></span>
-            <button id="refresh-gmail" class="ghost-button" type="button">Refresh</button>
-          </div>
-        </div>
-        <div id="gmail-results" class="gmail-results">
-          <p class="empty-state">Connect Gmail to start scanning inbox.</p>
-        </div>
-      </div>
-    </section>
-  </div>
-</div>
-    <div id="alert-root" class="alert-root alert-hidden">
-      <div class="alert-card">
-        <span id="accent-pill" class="accent-pill"></span>
-        <div class="alert-header">
-          <span class="badge">Scam Shield</span>
-          <button id="dismiss-alert" aria-label="Dismiss">×</button>
-        </div>
-        <div class="score-row">
-          <span id="alert-score">0%</span>
-          <span id="alert-level">Scam Risk</span>
-        </div>
-        <p id="alert-summary">Monitoring for suspicious activity...</p>
-        <ul id="alert-highlights" class="alert-list"></ul>
-        <div class="alert-footer">
-          <span id="alert-url">No URL detected.</span>
-          <span id="alert-timestamp"></span>
-        </div>
+      <div id="status" class="status">Ready to scan</div>
+    </div>
+
+    <!-- Source picker modal - select which screen/window to scan -->
+    <div id="source-picker-modal" class="source-picker-modal hidden">
+      <div class="picker-content">
+        <h2>Select Screen or Window</h2>
+        <p class="picker-subtitle">Choose what you want to scan for scams</p>
+        <div id="source-grid" class="source-grid"></div>
+        <button id="close-picker" class="close-picker-btn">Cancel</button>
       </div>
     </div>
-    <script defer src="./renderer.js"></script>
+
+    <!-- Alert overlay - shown when scam risk > 70 -->
+    <div id="alert-overlay" class="alert-overlay hidden">
+      <div class="alert-content">
+        <div class="alert-icon">⚠️</div>
+        <h2 class="alert-title">Scam Detected!</h2>
+        <p id="alert-reason" class="alert-reason"></p>
+        <button id="close-alert" class="close-btn">Close Alert</button>
+      </div>
+    </div>
+
+    <script src="./renderer.js"></script>
   </body>
 </html>
