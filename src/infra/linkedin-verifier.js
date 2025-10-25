@@ -8,6 +8,7 @@
  */
 
 const axios = require('axios');
+const { demoMode } = require('./demo-mode');
 
 const BRIGHTDATA_API_KEY = process.env.BRIGHTDATA_API_KEY || 'e2e1f10cf9d189632321fade4603ee8060560d4a547c2087cd26522e12dcb449';
 const BRIGHTDATA_DATASET_ID = process.env.BRIGHTDATA_LINKEDIN_DATASET_ID || 'gd_l1viktl72bvl7bjuj0';
@@ -15,6 +16,7 @@ const BRIGHTDATA_DATASET_ID = process.env.BRIGHTDATA_LINKEDIN_DATASET_ID || 'gd_
 class LinkedInVerifier {
   constructor() {
     this.cache = new Map(); // Cache LinkedIn lookups
+    this.demoMode = demoMode;
   }
 
   /**
@@ -261,6 +263,12 @@ class LinkedInVerifier {
       }
 
       console.log(`[LinkedIn] Extracted name: ${firstName} ${lastName}`);
+
+      // 🎬 DEMO MODE: Return instant mock results
+      if (this.demoMode.enabled) {
+        await this.demoMode.simulateDelay(800, 1500); // Realistic delay
+        return this.demoMode.getMockLinkedInResult(firstName, lastName, email);
+      }
 
       // Search LinkedIn via BrightData
       const profiles = await this.searchByName(firstName, lastName);
