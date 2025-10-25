@@ -47,6 +47,38 @@ npm start
 
 **Quick Access:** Press **Cmd/Ctrl+Shift+S** from anywhere to instantly open the dashboard.
 
+## 🎬 Demo Mode (For Presentations)
+
+**Preparing for a demo or video? Enable instant results!**
+
+```bash
+# Enable demo mode (instant mock results, no 2-3 min wait)
+npm run demo:mode
+
+# Prepare demo data and generate talking points
+npm run demo:prep
+
+# Start the app
+npm start
+```
+
+**📖 Full demo guide:** [QUICK-START-DEMO.md](./QUICK-START-DEMO.md)
+**🎯 Detailed instructions:** [DEMO-README.md](./DEMO-README.md)
+
+**Demo Mode Benefits:**
+- ✅ LinkedIn verification: 1-2 seconds (instead of 2-3 minutes)
+- ✅ Pre-generated realistic mock data
+- ✅ No API failures or timeouts
+- ✅ Perfect for time-constrained presentations
+
+**Switch back to real mode:**
+```bash
+npm run demo:real
+npm start
+```
+
+---
+
 ### 4. Test Integrations
 
 ```bash
