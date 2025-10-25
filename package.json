@@ -1,0 +1,27 @@
+{
+  "name": "calhacks2025",
+  "version": "0.1.0",
+  "description": "Starter Electron scam detection prototype.",
+  "main": "src/electron/main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^29.1.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.calhacks.scamdetect",
+    "files": [
+      "src/**/*",
+      "assets/icon.png",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    }
+  }
+}
