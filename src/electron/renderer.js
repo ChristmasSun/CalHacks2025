@@ -1,142 +1,253 @@
-const statusNode = document.getElementById('status');
-const scoreNode = document.getElementById('score');
-const levelNode = document.getElementById('level');
-const summaryNode = document.getElementById('summary');
-const explanationsList = document.getElementById('explanations');
-const transcriptNode = document.getElementById('transcript-output');
-const agentPersonaNode = document.getElementById('agent-persona');
-const dropZone = document.getElementById('drop-zone');
-const urlInput = document.getElementById('url-input');
-const form = document.getElementById('analyze-form');
-const analyzeButton = document.getElementById('analyze-button');
+const dashboardRoot = document.getElementById('dashboard-root');
+const dashboardStatus = document.getElementById('dashboard-status');
+const connectGmailButton = document.getElementById('connect-gmail');
+const hideDashboardButton = document.getElementById('hide-dashboard');
+const gmailStatusText = document.getElementById('gmail-status-text');
+const dashboardAccent = document.getElementById('dashboard-accent');
 
-const hasBridge = Boolean(window.scamShield);
+const alertRoot = document.getElementById('alert-root');
+const scoreNode = document.getElementById('alert-score');
+const levelNode = document.getElementById('alert-level');
+const summaryNode = document.getElementById('alert-summary');
+const highlightsList = document.getElementById('alert-highlights');
+const urlNode = document.getElementById('alert-url');
+const timestampNode = document.getElementById('alert-timestamp');
+const dismissButton = document.getElementById('dismiss-alert');
+const alertAccent = document.getElementById('accent-pill');
 
-if (!hasBridge) {
-  statusNode.textContent = 'IPC bridge unavailable. Reload the app.';
-  analyzeButton?.setAttribute('disabled', 'true');
-}
+const levelCopy = {
+  high: 'Critical Scam Risk',
+  medium: 'Elevated Scam Risk',
+  low: 'Low Scam Risk'
+};
 
-function setLoading(isLoading, message = 'Analyzing...', options = {}) {
-  const { highlightDropZone = false } = options;
+const accentTone = {
+  high: '#1d4ed8',
+  medium: '#2563eb',
+  low: '#0ea5e9'
+};
 
-  if (isLoading) {
-    statusNode.textContent = message;
-    analyzeButton?.setAttribute('disabled', 'true');
-    if (highlightDropZone) {
-      dropZone?.classList.add('dragover');
-    }
-  } else {
-    dropZone?.classList.remove('dragover');
-    analyzeButton?.removeAttribute('disabled');
+const STATUS_DEFAULT = 'No scans yet. Hit the tray menu to try a sample URL.';
+const STATUS_CONNECTED = 'Monitoring Gmail for suspicious links.';
+
+let gmailConnected = false;
+let gmailConnecting = false;
+
+function setDashboardStatus(message) {
+  if (dashboardStatus) {
+    dashboardStatus.textContent = message;
   }
 }
 
-function renderAssessment(assessment) {
+function setDashboardVisible(isVisible) {
+  if (!dashboardRoot) {
+    return;
+  }
+  if (isVisible) {
+    dashboardRoot.classList.remove('dashboard-hidden');
+  } else {
+    dashboardRoot.classList.add('dashboard-hidden');
+  }
+}
+
+function formatTimestamp(isoDate) {
+  try {
+    return new Date(isoDate).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (_error) {
+    return '';
+  }
+}
+
+function setHighlights(explanations) {
+  highlightsList.innerHTML = '';
+  const items = (explanations ?? []).slice(0, 3);
+  if (!items.length) {
+    const li = document.createElement('li');
+    li.textContent = 'No additional signals reported.';
+    highlightsList.appendChild(li);
+    return;
+  }
+
+  items.forEach((text) => {
+    const li = document.createElement('li');
+    li.textContent = text;
+    highlightsList.appendChild(li);
+  });
+}
+
+function applyAlertStyling(level) {
+  const tone = accentTone[level] ?? accentTone.high;
+  alertAccent.style.background = tone;
+  alertAccent.style.boxShadow = `0 12px 35px ${tone}33`;
+  alertRoot.style.borderColor = `${tone}33`;
+}
+
+function updateGmailUI(connected) {
+  if (!connectGmailButton || !gmailStatusText) {
+    return;
+  }
+  const previousState = gmailConnected;
+  gmailConnected = Boolean(connected);
+
+  if (gmailConnected) {
+    gmailStatusText.textContent = 'Connected';
+    connectGmailButton.textContent = 'Connected';
+    connectGmailButton.setAttribute('disabled', 'true');
+    connectGmailButton.classList.add('connected');
+    if (previousState !== gmailConnected) {
+      setDashboardStatus(STATUS_CONNECTED);
+    }
+  } else {
+    gmailStatusText.textContent = 'Not connected';
+    connectGmailButton.textContent = 'Connect Gmail';
+    connectGmailButton.removeAttribute('disabled');
+    connectGmailButton.classList.remove('connected');
+    if (previousState !== gmailConnected) {
+      setDashboardStatus(STATUS_DEFAULT);
+    }
+  }
+
+  if (dashboardAccent) {
+    dashboardAccent.style.background = gmailConnected
+      ? 'rgba(14, 165, 233, 0.55)'
+      : 'rgba(37, 99, 235, 0.5)';
+  }
+}
+
+async function handleGmailConnect() {
+  if (
+    gmailConnected ||
+    gmailConnecting ||
+    !window.scamShield?.connectGmail ||
+    !connectGmailButton
+  ) {
+    return;
+  }
+
+  gmailConnecting = true;
+  connectGmailButton.setAttribute('disabled', 'true');
+  connectGmailButton.textContent = 'Connecting…';
+  setDashboardStatus('Authorizing secure access to Gmail…');
+
+  try {
+    const result = await window.scamShield.connectGmail();
+    if (result?.connected) {
+      updateGmailUI(true);
+      setDashboardStatus('Monitoring Gmail for suspicious links.');
+    } else {
+      setDashboardStatus('Could not connect to Gmail. Try again shortly.');
+      connectGmailButton.removeAttribute('disabled');
+      connectGmailButton.textContent = 'Connect Gmail';
+      connectGmailButton.classList.remove('connected');
+    }
+  } catch (error) {
+    setDashboardStatus(`Connection failed: ${error.message}`);
+    connectGmailButton.removeAttribute('disabled');
+    connectGmailButton.textContent = 'Connect Gmail';
+    connectGmailButton.classList.remove('connected');
+  } finally {
+    gmailConnecting = false;
+  }
+}
+
+function showAlert(payload) {
+  const assessment = payload?.assessment;
   if (!assessment) {
     return;
   }
 
-  scoreNode.textContent = assessment.risk_score ?? '0';
-  levelNode.textContent = (assessment.risk_level ?? 'unknown').toUpperCase();
-  summaryNode.textContent = assessment.summary ?? 'Analysis complete.';
+  setDashboardVisible(false);
 
-  explanationsList.innerHTML = '';
-  (assessment.explanations ?? []).forEach((explanation) => {
-    const li = document.createElement('li');
-    li.textContent = explanation;
-    explanationsList.appendChild(li);
-  });
+  const level = assessment.risk_level ?? 'high';
+  applyAlertStyling(level);
 
-  if (!assessment.explanations?.length) {
-    const li = document.createElement('li');
-    li.textContent = 'No key findings surfaced.';
-    explanationsList.appendChild(li);
-  }
+  scoreNode.textContent = `${assessment.risk_score ?? 0}%`;
+  levelNode.textContent = levelCopy[level] ?? levelCopy.high;
+  summaryNode.textContent =
+    assessment.summary ??
+    'Suspicious activity spotted. Review the signals below before proceeding.';
+  urlNode.textContent = assessment.url ?? 'Unknown source';
+  urlNode.setAttribute('title', assessment.url ?? 'Unknown source');
+  const detectedAt = formatTimestamp(assessment.generatedAt);
+  timestampNode.textContent = detectedAt ? `Detected ${detectedAt}` : '';
 
-  if (assessment.transcriptSummary) {
-    transcriptNode.textContent = assessment.transcriptSummary;
-  } else {
-    transcriptNode.textContent = 'No audio scanned.';
-  }
+  setHighlights(assessment.explanations);
 
-  if (assessment.agentPersona) {
-    agentPersonaNode.textContent = assessment.agentPersona;
-  } else {
-    agentPersonaNode.textContent = 'n/a';
-  }
-
-  const timestamp = new Date(assessment.generatedAt ?? Date.now()).toLocaleTimeString();
-  statusNode.textContent = `Scan finished at ${timestamp}.`;
+  alertRoot.classList.remove('alert-visible');
+  alertRoot.classList.remove('alert-hidden');
+  void alertRoot.offsetWidth;
+  alertRoot.classList.remove('alert-hidden');
+  alertRoot.classList.add('alert-visible');
 }
 
-async function triggerAnalysis(payload, message, options) {
-  if (!hasBridge) {
-    return;
-  }
-  setLoading(true, message, options);
-  try {
-    const assessment = await window.scamShield.analyze(payload);
-    renderAssessment(assessment);
-  } catch (error) {
-    statusNode.textContent = `Failed: ${error.message}`;
-  } finally {
-    setLoading(false);
-  }
+function hideAlert() {
+  alertRoot.classList.remove('alert-visible');
+  alertRoot.classList.add('alert-hidden');
 }
 
-async function handleSubmit(event) {
-  event.preventDefault();
-  const url = urlInput.value.trim();
-  if (!url) {
-    statusNode.textContent = 'Enter a URL to analyze.';
-    return;
-  }
-  await triggerAnalysis({ url }, 'Analyzing URL...');
+function showDashboard(payload) {
+  const connected = payload?.connected ?? gmailConnected;
+  updateGmailUI(connected);
+  setDashboardVisible(true);
+  hideAlert();
 }
 
-function handleDragOver(event) {
-  event.preventDefault();
-  dropZone?.classList.add('dragover');
-}
+dismissButton?.addEventListener('click', () => {
+  hideAlert();
+  window.scamShield?.dismissAlert();
+});
 
-function handleDragLeave(event) {
-  event.preventDefault();
-  dropZone?.classList.remove('dragover');
-}
+alertRoot?.addEventListener('mouseenter', () => {
+  alertRoot.classList.add('alert-hover');
+});
 
-async function handleDrop(event) {
-  event.preventDefault();
-  dropZone?.classList.remove('dragover');
+alertRoot?.addEventListener('mouseleave', () => {
+  alertRoot.classList.remove('alert-hover');
+});
 
-  const file = event.dataTransfer?.files?.[0];
-  if (!file || !file.path) {
-    statusNode.textContent = 'Drop a valid audio file.';
-    return;
-  }
+connectGmailButton?.addEventListener('click', handleGmailConnect);
 
-  await triggerAnalysis({ audioFile: file.path }, 'Transcribing audio...', {
-    highlightDropZone: true
+hideDashboardButton?.addEventListener('click', () => {
+  setDashboardVisible(false);
+  window.scamShield?.hideDashboard();
+});
+
+if (window.scamShield?.onAlert) {
+  window.scamShield.onAlert((payload) => {
+    showAlert(payload);
   });
 }
 
-if (hasBridge) {
-  window.scamShield.onAnalysisComplete((payload) => {
-    const data = payload?.assessment ?? payload;
-    renderAssessment(data);
+if (window.scamShield?.onBootstrap) {
+  window.scamShield.onBootstrap((payload) => {
+    updateGmailUI(payload?.gmailConnected);
+    setDashboardVisible(true);
+    setDashboardStatus(gmailConnected ? STATUS_CONNECTED : STATUS_DEFAULT);
   });
 }
 
-if (form) {
-  form.addEventListener('submit', handleSubmit);
+if (window.scamShield?.onGmailStatus) {
+  window.scamShield.onGmailStatus((payload) => {
+    updateGmailUI(payload?.connected);
+  });
 }
 
-if (dropZone) {
-  ['dragenter', 'dragover'].forEach((eventName) => {
-    dropZone.addEventListener(eventName, handleDragOver);
+if (window.scamShield?.onShowDashboard) {
+  window.scamShield.onShowDashboard((payload) => {
+    showDashboard(payload);
   });
-  ['dragleave', 'drop'].forEach((eventName) => {
-    dropZone.addEventListener(eventName, handleDragLeave);
+}
+
+if (window.scamShield?.onAnalysisComplete) {
+  window.scamShield.onAnalysisComplete(({ assessment }) => {
+    if (!assessment) {
+      return;
+    }
+    const level = (assessment.risk_level ?? 'unknown').toUpperCase();
+    const score = typeof assessment.risk_score === 'number' ? assessment.risk_score : '—';
+    setDashboardStatus(`Last scan: ${score}% (${level}).`);
   });
-  dropZone.addEventListener('drop', handleDrop);
 }

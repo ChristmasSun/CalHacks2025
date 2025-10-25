@@ -9,3 +9,6 @@ releases/
 .env
 .idea/
 .vscode/
+
+# User-specific rules
+user-rules.json

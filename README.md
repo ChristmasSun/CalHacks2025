@@ -6,7 +6,7 @@ Electron application that analyzes URLs for scams using **real VM-based analysis
 
 - **Real URLScan.io Integration** - URLs are analyzed in isolated VMs with malware/phishing detection
 - **Multi-Signal Risk Scoring** - Combines URL sandbox analysis, domain reputation, keyword detection
-- **System Tray Interface** - Lightweight desktop app with notifications
+- **Invisible Tray Agent** - Runs silently and only surfaces a Cluely-style alert overlay on risky findings
 - **Extensible Architecture** - Easy to add VirusTotal, PhishTank, and other threat intelligence sources
 
 ## Quick Start
@@ -33,7 +33,7 @@ npm install
 npm start
 ```
 
-`npm start` launches Electron with the system tray UI. Use the tray menu to show the scanner window or trigger analysis.
+`npm start` launches Electron with the system tray UI. Use the tray menu’s sample actions to trigger analyses and preview the alert overlay.
 
 ### 4. Test URLScan Integration
 
@@ -58,8 +58,8 @@ src/
   electron/
     main.js       # Electron main process entry
     preload.js    # Secure bridge between renderer and main
-    renderer.js   # Renderer logic + minimal UI interactions
-    index.html    # Hidden UI for tray tooling & drag/drop
+    renderer.js   # Overlay controller for detection alerts
+    index.html    # Cluely-style top-right alert template
   infra/
     fetchAgent.js # Mock Fetch.ai agent call
     sandbox.js    # ✅ REAL URLScan.io VM-based URL analysis
@@ -84,7 +84,13 @@ assets/
    - Deepgram (mock) - Audio transcription for voice scams
 4. Results are enriched via core scraper (domain age, reputation, keywords).
 5. Risk scorer combines all signals into a 0-100 risk score with explanations.
-6. Main process returns assessment to renderer and shows native notification.
+6. Main process returns assessment to the renderer and, on risky findings, flashes the overlay drop-down.
+
+## Overlay UX
+
+- Hidden by default so the app stays invisible on the desktop.
+- Medium/high risk events animate a white & blue Cluely-style dropdown in the top-right corner.
+- The tray menu exposes sample triggers to preview the animation while developing.
 
 ## What's Real vs Mock
 
@@ -103,16 +109,16 @@ Share these snippets with teammates so everyone can drop into their lane quickly
 
 - **⚡ Individual Codex/Claude Prompts** – Quick single-shot instructions for rapid iterations.
 - **👩‍💻 Infra & Agent Engineer Prompt**
-  - Use Fetch.ai SDK to mock agent lookups (`src/infra/fetchAgent.js`).
-  - Stub Playwright/Puppeteer visit flow (`src/infra/sandbox.js`).
-  - Mock Deepgram transcription (`src/infra/deepgram.js`).
-  - Use `analyzeInput({ url, audioFile })` from `src/infra/index.js` to fan out across mocks.
+  - Wire additional agent intelligence into `src/infra/fetchAgent.js`.
+  - Extend the URLScan-driven sandbox pipeline in `src/infra/sandbox.js`.
+  - Flesh out Deepgram transcription in `src/infra/deepgram.js`.
+  - Use `analyzeInput({ url, audioFile })` from `src/infra/index.js` to orchestrate inputs.
 - **👨‍💻 Scraping & Scoring Engineer Prompt**
   - Extend `src/core/scraper.js` to mimic Bright Data enrichment (WHOIS, reputation, keywords).
   - Update `src/core/scorer.js` to reason over redirects, young domains, risky keywords, and transcripts.
 - **🧑‍💻 UI & Shell Engineer Prompt**
-  - Wire Electron tray-only shell in `src/electron/main.js`.
+  - Maintain the invisible Electron shell in `src/electron/main.js`.
   - Expose IPC bridge via `src/electron/preload.js`.
-  - Update `src/electron/index.html` + `renderer.js` for URL scans, audio drops, and toast notifications.
+  - Shape the Cluely-style overlay in `src/electron/index.html` + `renderer.js`.
 
 This repo is now staged so each role can open their respective files and begin prompting/coding in parallel.

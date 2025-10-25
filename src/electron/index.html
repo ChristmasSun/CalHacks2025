@@ -2,180 +2,355 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scam Shield</title>
+    <title>Scam Shield Alert</title>
     <style>
       :root {
-        color-scheme: light dark;
-        font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
-        background: linear-gradient(160deg, #0f172a, #1e293b);
-        color: #e2e8f0;
+        font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #0f172a;
+        background: transparent;
       }
 
       body {
         margin: 0;
-        padding: 24px;
+        padding: 0;
+        background: transparent;
       }
 
-      .card {
-        background: rgba(15, 23, 42, 0.9);
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 16px;
+      .alert-root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 1px;
+        border-radius: 20px;
+        border: 1px solid transparent;
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        transition: opacity 180ms ease, transform 220ms ease;
+        opacity: 0;
+        transform: translateY(-16px);
+        pointer-events: auto;
+        z-index: 2;
+      }
+
+      .alert-card {
+        position: relative;
+        border-radius: 20px;
         padding: 20px;
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.45);
+        background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(226, 241, 255, 0.92));
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+        overflow: hidden;
+        transition: transform 180ms ease, box-shadow 200ms ease;
       }
 
-      header {
+      .accent-pill {
+        position: absolute;
+        inset: auto auto -40px 50%;
+        transform: translateX(-50%);
+        width: 170px;
+        height: 170px;
+        border-radius: 50%;
+        background: rgba(37, 99, 235, 0.65);
+        filter: blur(60px);
+        opacity: 0.85;
+        pointer-events: none;
+        transition: background 180ms ease, box-shadow 180ms ease;
+      }
+
+      .alert-hidden {
+        opacity: 0;
+        transform: translateY(-16px);
+      }
+
+      .alert-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .alert-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 16px;
+        margin-bottom: 14px;
       }
 
-      header h1 {
+      .badge {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1d4ed8;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      #dismiss-alert {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(15, 23, 42, 0.08);
+        color: #1e293b;
+        cursor: pointer;
+        transition: background 180ms ease, transform 180ms ease;
+      }
+
+      #dismiss-alert:hover {
+        background: rgba(15, 23, 42, 0.12);
+        transform: translateY(-1px);
+      }
+
+      .score-row {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+
+      #alert-score {
+        font-size: 2.9rem;
+        font-weight: 700;
+        color: #1d4ed8;
+        line-height: 1;
+      }
+
+      #alert-level {
+        font-size: 0.95rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(15, 23, 42, 0.68);
+        font-weight: 600;
+      }
+
+      #alert-summary {
+        margin: 12px 0 16px;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        color: rgba(15, 23, 42, 0.72);
+      }
+
+      .alert-list {
         margin: 0;
-        font-size: 1.15rem;
-        letter-spacing: 0.015em;
-      }
-
-      form {
+        padding-left: 20px;
         display: grid;
-        grid-template-columns: 1fr auto;
+        gap: 6px;
+        color: rgba(15, 23, 42, 0.72);
+        font-size: 0.85rem;
+      }
+
+      .alert-footer {
+        margin-top: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .alert-hover .alert-card {
+        transform: translateY(-2px);
+        box-shadow: 0 32px 80px rgba(15, 23, 42, 0.22);
+      }
+
+      .dashboard-root {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+        transition: opacity 180ms ease;
+        z-index: 1;
+      }
+
+      .dashboard-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .dashboard-card {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 20px;
+        padding: 20px 22px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(231, 244, 255, 0.94));
+        box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
+        overflow: hidden;
+      }
+
+      .dashboard-card .accent-pill {
+        position: absolute;
+        inset: auto -40px -40px auto;
+        width: 180px;
+        height: 180px;
+        border-radius: 50%;
+        background: rgba(37, 99, 235, 0.5);
+        filter: blur(70px);
+        opacity: 0.8;
+        pointer-events: none;
+      }
+
+      .dashboard-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+      }
+
+      .dashboard-header h1 {
+        margin: 0 0 6px;
+        font-size: 1.1rem;
+        color: #0f172a;
+      }
+
+      .dashboard-subtitle {
+        margin: 0;
+        font-size: 0.82rem;
+        color: rgba(15, 23, 42, 0.6);
+      }
+
+      .dashboard-body {
+        margin-top: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .summary-chip {
+        display: inline-flex;
+        align-items: center;
         gap: 8px;
-        margin-bottom: 10px;
+        background: rgba(37, 99, 235, 0.08);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        color: #1d4ed8;
+        font-weight: 600;
       }
 
-      input[type="url"] {
-        flex: 1;
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        background: rgba(15, 23, 42, 0.75);
-        color: inherit;
-        outline: none;
-        transition: border 0.2s ease;
+      .summary-chip .chip-label {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.72rem;
       }
 
-      input[type="url"]:focus {
-        border-color: #22d3ee;
-        box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
+      .dashboard-copy {
+        margin: 0;
+        font-size: 0.82rem;
+        line-height: 1.4;
+        color: rgba(15, 23, 42, 0.7);
       }
 
-      button {
+      .primary-button {
         padding: 10px 16px;
         border-radius: 10px;
         border: none;
-        background: linear-gradient(135deg, #0ea5e9, #22d3ee);
-        color: #0f172a;
         font-weight: 600;
-        cursor: pointer;
-        transition: opacity 0.2s ease;
-      }
-
-      button[disabled] {
-        opacity: 0.5;
-        cursor: progress;
-      }
-
-      .drop-zone {
-        border: 1px dashed rgba(148, 163, 184, 0.5);
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 14px;
-        background: rgba(30, 41, 59, 0.6);
-        text-align: center;
-        font-size: 0.85rem;
-        color: rgba(226, 232, 240, 0.85);
-        transition: border 0.2s ease, background 0.2s ease;
-      }
-
-      .drop-zone.dragover {
-        border-color: #22d3ee;
-        background: rgba(14, 165, 233, 0.15);
-      }
-
-      .status {
-        margin: 10px 0 18px;
-        font-size: 0.85rem;
-        color: rgba(226, 232, 240, 0.8);
-      }
-
-      .score-board {
-        display: flex;
-        gap: 12px;
-        align-items: baseline;
-        margin-bottom: 12px;
-      }
-
-      .score {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #22d3ee;
-      }
-
-      .level {
         font-size: 0.9rem;
-        padding: 4px 10px;
-        border-radius: 999px;
-        background: rgba(148, 163, 184, 0.2);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
+        color: #f8fafc;
+        background: linear-gradient(135deg, #2563eb, #38bdf8);
+        cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
       }
 
-      ul {
+      .primary-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.22);
+      }
+
+      .primary-button[disabled] {
+        opacity: 0.6;
+        cursor: progress;
+        box-shadow: none;
+      }
+
+      .primary-button.connected {
+        background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+        cursor: default;
+      }
+
+      .primary-button.connected[disabled] {
+        opacity: 1;
+        cursor: default;
+      }
+
+      .ghost-button {
+        border: none;
+        background: rgba(15, 23, 42, 0.08);
+        color: #1e293b;
+        font-size: 0.78rem;
+        padding: 6px 10px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background 0.18s ease, transform 0.18s ease;
+      }
+
+      .ghost-button:hover {
+        background: rgba(15, 23, 42, 0.1);
+        transform: translateY(-1px);
+      }
+
+      .dashboard-status {
         margin: 0;
-        padding-left: 18px;
-        display: grid;
-        gap: 6px;
-        font-size: 0.85rem;
+        font-size: 0.74rem;
+        color: rgba(15, 23, 42, 0.5);
       }
 
-      .section-title {
-        margin: 18px 0 6px;
-        font-size: 0.8rem;
-        letter-spacing: 0.08em;
-        opacity: 0.7;
-        text-transform: uppercase;
+      #alert-url {
+        font-size: 0.82rem;
+        color: rgba(15, 23, 42, 0.5);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      .transcript {
-        font-size: 0.8rem;
-        background: rgba(15, 23, 42, 0.7);
-        border-radius: 10px;
-        padding: 12px;
-        border: 1px solid rgba(148, 163, 184, 0.15);
+      #alert-timestamp {
+        font-size: 0.75rem;
+        color: rgba(15, 23, 42, 0.55);
       }
     </style>
   </head>
   <body>
-    <div class="card">
-      <header>
-        <h1>Scam Shield</h1>
-      </header>
-      <form id="analyze-form">
-        <input
-          id="url-input"
-          type="url"
-          placeholder="https://example.site/login"
-          autocomplete="off"
-          required
-        />
-        <button id="analyze-button" type="submit">Scan</button>
-      </form>
-      <div id="drop-zone" class="drop-zone">Drop a voicemail file (*.wav, *.mp3) to scan audio.</div>
-      <p id="status" class="status">Waiting for a URL or audio sample.</p>
-      <div class="score-board">
-        <span id="score" class="score">0</span>
-        <span id="level" class="level">UNKNOWN</span>
+    <div id="dashboard-root" class="dashboard-root">
+      <div class="dashboard-card">
+        <span class="accent-pill" id="dashboard-accent"></span>
+        <header class="dashboard-header">
+          <div>
+            <h1>Scam Shield</h1>
+            <p class="dashboard-subtitle">Stay ahead of suspicious links across email and the web.</p>
+          </div>
+          <button id="hide-dashboard" class="ghost-button" aria-label="Hide dashboard">Hide</button>
+        </header>
+        <section class="dashboard-body">
+          <div class="summary-chip">
+            <span class="chip-label">Gmail Monitor</span>
+            <span id="gmail-status-text">Not connected</span>
+          </div>
+          <p class="dashboard-copy">
+            Connect Gmail to automatically scan visible emails and URLs for phishing or malware indicators.
+          </p>
+          <button id="connect-gmail" class="primary-button">Connect Gmail</button>
+          <p id="dashboard-status" class="dashboard-status">No scans yet. Hit the tray menu to try a sample URL.</p>
+        </section>
       </div>
-      <p id="summary">No scans yet.</p>
-      <p class="section-title">Key Findings</p>
-      <ul id="explanations"></ul>
-      <p class="section-title">Transcript</p>
-      <div id="transcript-output" class="transcript">No audio scanned.</div>
-      <p class="section-title">Agent Persona</p>
-      <p id="agent-persona">n/a</p>
+    </div>
+    <div id="alert-root" class="alert-root alert-hidden">
+      <div class="alert-card">
+        <span id="accent-pill" class="accent-pill"></span>
+        <div class="alert-header">
+          <span class="badge">Scam Shield</span>
+          <button id="dismiss-alert" aria-label="Dismiss">×</button>
+        </div>
+        <div class="score-row">
+          <span id="alert-score">0%</span>
+          <span id="alert-level">Scam Risk</span>
+        </div>
+        <p id="alert-summary">Monitoring for suspicious activity...</p>
+        <ul id="alert-highlights" class="alert-list"></ul>
+        <div class="alert-footer">
+          <span id="alert-url">No URL detected.</span>
+          <span id="alert-timestamp"></span>
+        </div>
+      </div>
     </div>
     <script defer src="./renderer.js"></script>
   </body>
