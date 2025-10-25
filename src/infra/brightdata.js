@@ -9,7 +9,16 @@
  */
 
 const axios = require('axios');
-const { whoisDomain } = require('whoiser');
+
+// Lazy-load whoiser (ES module) to avoid require() issues
+let whoisDomain = null;
+async function loadWhoisDomain() {
+  if (!whoisDomain) {
+    const whoiser = await import('whoiser');
+    whoisDomain = whoiser.whoisDomain;
+  }
+  return whoisDomain;
+}
 
 const BRIGHTDATA_API_BASE = 'https://api.brightdata.com/datasets/v3';
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
@@ -187,7 +196,9 @@ class BrightDataClient {
     try {
       console.log('[BrightData/WHOIS] Fetching WHOIS data for:', domain);
 
-      const whoisData = await whoisDomain(domain, {
+      // Lazy-load whoiser module
+      const whoisDomainFn = await loadWhoisDomain();
+      const whoisData = await whoisDomainFn(domain, {
         timeout: 10000,
         follow: 2 // Follow up to 2 redirects
       });
