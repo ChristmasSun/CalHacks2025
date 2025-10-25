@@ -142,7 +142,7 @@ npm start
 ## What to Say During Demo
 
 ### Opening
-> "Cluely is an AI-powered scam detector that verifies contacts, scans URLs, and monitors your Gmail in real-time."
+> "Detectify is an AI-powered scam detector that verifies contacts, scans URLs, and monitors your Gmail in real-time."
 
 ### Contact Verification
 **Demo Mode:**
@@ -155,7 +155,7 @@ npm start
 > "URLScan.io runs the URL in an isolated VM to detect malware, phishing, and suspicious patterns. Green means safe, red means danger."
 
 ### Gmail
-> "Connect your Gmail and Cluely auto-scans for typosquatting, urgent language, and sender authenticity."
+> "Connect your Gmail and Detectify auto-scans for typosquatting, urgent language, and sender authenticity."
 
 ---
 

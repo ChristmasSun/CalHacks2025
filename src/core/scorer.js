@@ -115,10 +115,10 @@ function scoreRisk(enriched) {
       explanations.push(`URLScan.io risk score: ${urlscanSecurity.score}/100`);
     }
   }
-  // No URLScan data available - start with neutral baseline
+  // No URLScan data available - start with LOW baseline (not enough data to judge)
   else {
-    totalScore = 30; // Slight caution by default
-    explanations.push('No URLScan.io verdict available - limited analysis.');
+    totalScore = 10; // Low baseline when data is limited
+    explanations.push('Limited threat intelligence available - URL appears normal but analysis is incomplete.');
   }
 
   // ========================================

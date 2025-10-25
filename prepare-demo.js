@@ -243,7 +243,7 @@ class DemoPreparation {
     const spinner = ora('Creating demo talking points...').start();
 
     const demoScript = `
-# DEMO SCRIPT - Cluely Scam Detector
+# DEMO SCRIPT - Detectify Scam Detector
 
 ## Pre-Demo Checklist ✅
 ${this.results.errors.length === 0 ? '- ✅ All systems operational' : '- ⚠️ Some errors detected (see below)'}
@@ -254,7 +254,7 @@ ${this.results.errors.length === 0 ? '- ✅ All systems operational' : '- ⚠️
 ## Demo Flow (5-7 minutes)
 
 ### 1. Introduction (30 seconds)
-> "Cluely is an AI-powered scam detection system that protects you from phishing,
+> "Detectify is an AI-powered scam detection system that protects you from phishing,
 > fake contacts, and malicious URLs in real-time."
 
 ### 2. URL Scanning Demo (1 minute)
