@@ -172,6 +172,122 @@
         font-size: 0.9rem;
       }
 
+      .gmail-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 20px;
+      }
+
+      .gmail-section h3 {
+        font-size: 0.9rem;
+        color: #667eea;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .gmail-status {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 10px;
+      }
+
+      .gmail-btn {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        width: 100%;
+      }
+
+      .gmail-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+      }
+
+      .gmail-btn.connected {
+        background: linear-gradient(135deg, #10b981, #059669);
+      }
+
+      .contact-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 20px;
+      }
+
+      .contact-section h3 {
+        font-size: 0.9rem;
+        color: #667eea;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .contact-section textarea {
+        width: 100%;
+        min-height: 80px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 0.85rem;
+        resize: vertical;
+        margin-bottom: 10px;
+      }
+
+      .verify-btn {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: white;
+        width: 100%;
+      }
+
+      .verify-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+      }
+
+      .gmail-messages {
+        margin-top: 10px;
+        max-height: 150px;
+        overflow-y: auto;
+      }
+
+      .gmail-message {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        font-size: 0.8rem;
+      }
+
+      .gmail-message h4 {
+        font-size: 0.85rem;
+        color: #333;
+        margin-bottom: 5px;
+      }
+
+      .gmail-message .from {
+        color: #666;
+        font-size: 0.75rem;
+        margin-bottom: 5px;
+      }
+
+      .gmail-message .reasons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 5px;
+      }
+
+      .gmail-message .reason-tag {
+        background: #fef3c7;
+        color: #92400e;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+      }
+
       @keyframes pulse {
         0%, 100% {
           opacity: 1;
@@ -203,6 +319,25 @@
         <div id="scan-info" class="scan-info">
           <p class="no-scan">No scans yet</p>
         </div>
+      </div>
+
+      <!-- Gmail Integration -->
+      <div class="gmail-section">
+        <h3>Gmail Monitor</h3>
+        <p id="gmail-status" class="gmail-status">Not connected</p>
+        <button id="gmail-btn" class="gmail-btn">Connect Gmail</button>
+        <div id="gmail-messages" class="gmail-messages"></div>
+      </div>
+
+      <!-- Contact Verification -->
+      <div class="contact-section">
+        <h3>Verify Contact</h3>
+        <p style="font-size: 0.8rem; color: #666; margin-bottom: 10px;">
+          Paste LinkedIn message, email, or text with name + email
+        </p>
+        <textarea id="contact-text" placeholder="Paste text here..."></textarea>
+        <button id="verify-btn" class="verify-btn">Verify Contact</button>
+        <div id="verify-result" style="margin-top: 10px; font-size: 0.85rem;"></div>
       </div>
     </div>
 

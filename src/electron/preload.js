@@ -30,5 +30,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Set overlay window clickability (for overlay window)
   setOverlayClickable: (clickable) => {
     ipcRenderer.send('set-overlay-clickable', clickable);
-  }
+  },
+
+  // Gmail integration
+  connectGmail: () => ipcRenderer.invoke('connect-gmail'),
+  refreshGmail: () => ipcRenderer.invoke('refresh-gmail'),
+
+  // Listen for Gmail status updates
+  onGmailStatus: (callback) => {
+    ipcRenderer.on('gmail-status', (event, status) => callback(status));
+  },
+
+  // Text/contact analysis
+  analyzeText: (text) => ipcRenderer.invoke('analyze-text', { text })
 });
