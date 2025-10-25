@@ -129,10 +129,12 @@ async function startGmailOAuthFlow() {
     scope: GMAIL_SCOPES
   });
 
-  const authResult = await new Promise((resolve, reject) => {
-    let handled = false;
+  let authResult;
+  try {
+    authResult = await new Promise((resolve, reject) => {
+      let handled = false;
 
-    server.on('request', async (req, res) => {
+      server.on('request', async (req, res) => {
       if (!req.url) {
         res.writeHead(400).end();
         return;
@@ -210,11 +212,12 @@ async function startGmailOAuthFlow() {
     });
 
     authWindow.loadURL(authUrl);
-  });
-
-  await new Promise((resolve) => server.close(resolve));
-  if (authWindow && !authWindow.isDestroyed()) {
-    authWindow.close();
+    });
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    if (authWindow && !authWindow.isDestroyed()) {
+      authWindow.close();
+    }
   }
 
   const profile = await fetchGmailProfile(authResult.oauthClient);
@@ -271,7 +274,7 @@ function displayDashboard() {
   }
   clearTimeout(alertTimer);
   positionWindow();
-  const payload = { connected: gmailConnected };
+  const payload = { connected: gmailConnected, email: gmailProfile?.email || null };
   const sendDashboard = () => mainWindow.webContents.send('show-dashboard', payload);
   if (mainWindow.webContents.isLoading()) {
     mainWindow.webContents.once('did-finish-load', sendDashboard);
@@ -453,10 +456,16 @@ function createTray() {
   tray.on('click', () => tray.popUpContextMenu());
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   console.log('[ScamShield] App ready');
   createWindow();
   createTray();
+
+  gmailTokenPath = path.join(app.getPath('userData'), 'gmail-tokens.json');
+  const restored = await restoreGmailSession();
+  if (restored) {
+    console.log('[ScamShield] Gmail session restored for', gmailProfile?.email || 'unknown account');
+  }
 
   // Start automatic clipboard monitoring
   clipboardMonitor = new ClipboardMonitor({
@@ -496,7 +505,11 @@ app.whenReady().then(() => {
 
   if (mainWindow) {
     mainWindow.once('ready-to-show', () => {
-      const sendBootstrap = () => mainWindow.webContents.send('bootstrap', { gmailConnected });
+      const payload = {
+        gmailConnected,
+        email: gmailProfile?.email || null
+      };
+      const sendBootstrap = () => mainWindow.webContents.send('bootstrap', payload);
       if (mainWindow.webContents.isLoading()) {
         mainWindow.webContents.once('did-finish-load', sendBootstrap);
       } else {

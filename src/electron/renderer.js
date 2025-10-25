@@ -198,6 +198,7 @@ function showDashboard(payload) {
   const email = payload?.email ?? gmailAccountEmail;
   updateGmailUI(connected, email);
   setDashboardVisible(true);
+  setDashboardStatus(connected ? STATUS_CONNECTED : STATUS_DEFAULT);
   hideAlert();
 }
 
@@ -216,9 +217,14 @@ alertRoot?.addEventListener('mouseleave', () => {
 
 connectGmailButton?.addEventListener('click', handleGmailConnect);
 
-hideDashboardButton?.addEventListener('click', () => {
+hideDashboardButton?.addEventListener('click', async () => {
   setDashboardVisible(false);
-  window.scamShield?.hideDashboard();
+  hideAlert();
+  try {
+    await window.scamShield?.hideDashboard();
+  } catch (_error) {
+    // no-op
+  }
 });
 
 if (window.scamShield?.onAlert) {
@@ -229,7 +235,7 @@ if (window.scamShield?.onAlert) {
 
 if (window.scamShield?.onBootstrap) {
   window.scamShield.onBootstrap((payload) => {
-    updateGmailUI(payload?.gmailConnected);
+    updateGmailUI(payload?.gmailConnected, payload?.email);
     setDashboardVisible(true);
     setDashboardStatus(gmailConnected ? STATUS_CONNECTED : STATUS_DEFAULT);
   });
@@ -237,7 +243,7 @@ if (window.scamShield?.onBootstrap) {
 
 if (window.scamShield?.onGmailStatus) {
   window.scamShield.onGmailStatus((payload) => {
-    updateGmailUI(payload?.connected);
+    updateGmailUI(payload?.connected, payload?.email);
   });
 }
 

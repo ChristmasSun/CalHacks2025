@@ -7,6 +7,8 @@ Electron application that analyzes URLs for scams using **real VM-based analysis
 - **Real URLScan.io Integration** - URLs are analyzed in isolated VMs with malware/phishing detection
 - **Multi-Signal Risk Scoring** - Combines URL sandbox analysis, domain reputation, keyword detection
 - **Invisible Tray Agent** - Runs silently and only surfaces a Cluely-style alert overlay on risky findings
+- **Gmail Inbox Scanning** - OAuth flow to connect Gmail and flag suspicious messages in your inbox
+- **Clipboard & Screen Awareness** - Auto-detects URLs copied to the clipboard and queues them for scanning
 - **Extensible Architecture** - Easy to add VirusTotal, PhishTank, and other threat intelligence sources
 
 ## Quick Start
@@ -22,8 +24,11 @@ Electron application that analyzes URLs for scams using **real VM-based analysis
 # Copy environment template
 cp .env.example .env
 
-# Edit .env and add your API key
-# URLSCAN_API_KEY=your_api_key_here
+# Edit .env and add your keys
+# URLSCAN_API_KEY=your_urlscan_api_key
+# GOOGLE_CLIENT_ID=your_google_oauth_client_id
+# GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+# GOOGLE_REDIRECT_URI=http://127.0.0.1:42862/oauth2callback   # optional override
 ```
 
 ### 3. Install & Run
@@ -43,6 +48,13 @@ node test-urlscan.js https://example.com
 
 **See [SETUP.md](SETUP.md) for detailed setup instructions and troubleshooting.**
 
+### 5. Connect Gmail (optional but recommended)
+
+1. Create an OAuth 2.0 Client ID (Desktop app) in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Add the credentials to `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
+3. Launch the app and click **Connect Gmail** in the dashboard – approve the consent screen
+4. Tokens are stored locally in your user data folder (`gmail-tokens.json`) so you stay signed in
+
 ## Building
 
 ```bash
@@ -58,7 +70,7 @@ src/
   electron/
     main.js       # Electron main process entry
     preload.js    # Secure bridge between renderer and main
-    renderer.js   # Overlay controller for detection alerts
+    renderer.js   # Dashboard + overlay controller for detection alerts
     index.html    # Cluely-style top-right alert template
   infra/
     fetchAgent.js # Mock Fetch.ai agent call
@@ -68,6 +80,9 @@ src/
   core/
     scraper.js    # Mock Bright Data enrichment
     scorer.js     # Risk scoring across signals
+    clipboard-monitor.js # Watches clipboard for URLs to auto-scan
+    url-filter.js        # Whitelist/blacklist + heuristics for auto-scans
+    scan-queue.js        # Rate-limited orchestration for URLScan.io jobs
   shared/
     types.js      # Shared enums/builders for assessment payloads
 assets/
@@ -97,6 +112,7 @@ assets/
 ✅ **Real Integrations:**
 - URLScan.io VM sandbox analysis ([sandbox.js](src/infra/sandbox.js))
 - Risk scoring algorithm ([scorer.js](src/core/scorer.js))
+- Gmail OAuth connection (googleapis) with local token storage
 
 🔄 **Mock Integrations (ready to swap):**
 - Fetch.ai agent analysis ([fetchAgent.js](src/infra/fetchAgent.js))
