@@ -1,0 +1,44 @@
+[
+  {
+    "url": "https://brightdata.com/cp/start",
+    "fingerprint": "29ac5bfc1166cf60931dee4e2dd7e1cd807b5e5fd6eb5e21af0dc4cf92bed583",
+    "timestamp": 1761380656520,
+    "scanDate": "2025-10-25T08:24:16.520Z"
+  },
+  {
+    "url": "https://aka.ms/github-copilot-manage-overage",
+    "fingerprint": "6eee184cc329ac4db8a5c2fb2c40b6ae3ecc46709183bf2bd361d43e63593bf4",
+    "timestamp": 1761380716835,
+    "scanDate": "2025-10-25T08:25:16.835Z"
+  },
+  {
+    "url": "https://console.anthropic.com/oauth/authorize?code=true&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A61435%2Fcallback&scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference&code_challenge=EUtt-d-x4vrPdcCX-HzmwmEjpPvVDLmlWiDUNEuvZas&code_challenge_method=S256&state=Vf3leK52D5ya-4HDMunu4NTWlbzrJlUF4EFdKyjaYyg",
+    "fingerprint": "c3b08940ff13e8bd7ee71297f1c2b8adeee74418e73e8d3865aa67f180a9a810",
+    "timestamp": 1761380880048,
+    "scanDate": "2025-10-25T08:28:00.048Z"
+  },
+  {
+    "url": "chrome://newtab/",
+    "fingerprint": "4b15aabcdec3a91ba32ccdcb2b93bc470681fdb20ac620691f44cdab41fffb44",
+    "timestamp": 1761380935178,
+    "scanDate": "2025-10-25T08:28:55.178Z"
+  },
+  {
+    "url": "http://wtflol.com/",
+    "fingerprint": "e4ca55215dcfe653ab6d4c3372582163799f1c8151cd4cae91e138bb07fcb167",
+    "timestamp": 1761380960050,
+    "scanDate": "2025-10-25T08:29:20.050Z"
+  },
+  {
+    "url": "https://www.kaggle.com/datasets/sid321axn/malicious-urls-dataset",
+    "fingerprint": "52598520559d2f61352185fb87321c05b242a6015775011925781298dd19ba58",
+    "timestamp": 1761380986282,
+    "scanDate": "2025-10-25T08:29:46.282Z"
+  },
+  {
+    "url": "https://banking.firsttechfed.com/DashboardV2",
+    "fingerprint": "cd1f72ce9903fa0259a2d699283219993e07c63b327696ce1e7431b14acf4c8c",
+    "timestamp": 1761381013625,
+    "scanDate": "2025-10-25T08:30:13.625Z"
+  }
+]

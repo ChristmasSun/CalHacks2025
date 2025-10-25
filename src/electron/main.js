@@ -183,6 +183,8 @@ async function refreshGmailData(oauthClient) {
       throw new Error('Missing Gmail session credentials. Please reconnect.');
     }
 
+    gmailOAuthClient = client;
+
     const gmail = google.gmail({ version: 'v1', auth: client });
 
     const listResponse = await gmail.users.messages.list({
@@ -447,6 +449,9 @@ async function startGmailOAuthFlow() {
 
   await persistGmailTokens(gmailTokens, redirectUri);
 
+  gmailSuspiciousMessages = [];
+  gmailLastRefreshedAt = null;
+
   const refreshPayload = await refreshGmailData(gmailOAuthClient);
   return refreshPayload;
 }
@@ -495,7 +500,7 @@ function displayDashboard() {
   }
   clearTimeout(alertTimer);
   positionWindow();
-  const payload = { connected: gmailConnected, email: gmailProfile?.email || null };
+  const payload = buildGmailStatusPayload();
   const sendDashboard = () => mainWindow.webContents.send('show-dashboard', payload);
   if (mainWindow.webContents.isLoading()) {
     mainWindow.webContents.once('did-finish-load', sendDashboard);
@@ -802,10 +807,7 @@ app.whenReady().then(async () => {
 
   if (mainWindow) {
     mainWindow.once('ready-to-show', () => {
-      const payload = {
-        gmailConnected,
-        email: gmailProfile?.email || null
-      };
+      const payload = buildGmailStatusPayload();
       const sendBootstrap = () => mainWindow.webContents.send('bootstrap', payload);
       if (mainWindow.webContents.isLoading()) {
         mainWindow.webContents.once('did-finish-load', sendBootstrap);
@@ -881,6 +883,12 @@ ipcMain.handle('connect-gmail', async () => {
     return result;
   } catch (error) {
     console.error('[ScamShield] Gmail connection failed:', error);
+    gmailConnected = false;
+    gmailProfile = null;
+    gmailOAuthClient = null;
+    gmailTokens = null;
+    gmailSuspiciousMessages = [];
+    gmailLastRefreshedAt = null;
     emitGmailStatus({ error: error.message });
     return { connected: false, error: error.message };
   }

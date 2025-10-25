@@ -6,6 +6,7 @@
  */
 
 const { clipboard } = require('electron');
+const { urlHistory } = require('./url-history');
 
 class ClipboardMonitor {
   constructor(options = {}) {
@@ -13,6 +14,7 @@ class ClipboardMonitor {
     this.interval = null;
     this.pollInterval = options.pollInterval || 500; // Check every 500ms
     this.onURL = options.onURL || (() => {});
+    this.skipAlreadyScanned = options.skipAlreadyScanned !== false; // Default to true
 
     // Enhanced URL regex that matches most URL patterns
     this.urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
@@ -50,6 +52,12 @@ class ClipboardMonitor {
 
           // Only process http/https URLs
           if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            // Skip if already scanned (unless disabled)
+            if (this.skipAlreadyScanned && urlHistory.hasBeenScanned(url)) {
+              console.log('[ClipboardMonitor] URL already scanned, skipping:', url);
+              return;
+            }
+
             console.log('[ClipboardMonitor] Detected URL:', url);
             this.onURL(url);
           }

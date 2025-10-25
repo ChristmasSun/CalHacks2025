@@ -6,6 +6,8 @@
  * and respect rate limits.
  */
 
+const { urlHistory } = require('./url-history');
+
 class ScanQueue {
   constructor() {
     this.queue = [];
@@ -16,6 +18,7 @@ class ScanQueue {
       totalQueued: 0,
       totalProcessed: 0,
       totalFailed: 0,
+      totalSkipped: 0,
       averageScanTime: 0
     };
   }
@@ -27,6 +30,20 @@ class ScanQueue {
    * @returns {Promise} - Resolves with scan results
    */
   async enqueue(url, priority = 0) {
+    // Check if URL has already been scanned
+    if (urlHistory.hasBeenScanned(url)) {
+      const history = urlHistory.getHistory(url);
+      console.log('[ScanQueue] URL already scanned, returning cached result:', url);
+      this.stats.totalSkipped++;
+      
+      return Promise.resolve({
+        cached: true,
+        url,
+        previousScan: history,
+        message: 'This URL was previously scanned and is still cached'
+      });
+    }
+
     return new Promise((resolve, reject) => {
       const item = {
         url,
@@ -94,6 +111,9 @@ class ScanQueue {
         const result = await inspectUrlInSandbox(url);
 
         const scanDuration = Date.now() - scanStart;
+
+        // Record the scan in history
+        urlHistory.recordScan(url, result?.assessment);
 
         // Update average scan time
         if (this.stats.averageScanTime === 0) {

@@ -69,6 +69,8 @@ function setGmailRefreshing(isRefreshing) {
     refreshGmailButton.textContent = 'Refresh';
     if (gmailConnected) {
       refreshGmailButton.removeAttribute('disabled');
+    } else {
+      refreshGmailButton.setAttribute('disabled', 'true');
     }
   }
 }
@@ -120,7 +122,8 @@ function renderGmailMessages(messages = [], refreshedAt = null, error = null) {
       if (item.snippet) {
         const snippet = document.createElement('p');
         snippet.className = 'gmail-snippet';
-        snippet.textContent = item.snippet.trim();
+        const cleanSnippet = item.snippet.trim();
+        snippet.textContent = cleanSnippet.length > 160 ? `${cleanSnippet.slice(0, 157)}…` : cleanSnippet;
         card.appendChild(snippet);
       }
 
@@ -249,7 +252,13 @@ async function handleGmailConnect() {
     const result = await window.scamShield.connectGmail();
     if (result?.connected) {
       updateGmailUI(true, result.email);
-      setDashboardStatus(STATUS_CONNECTED);
+      if (result?.error) {
+        setDashboardStatus(`Gmail error: ${result.error}`);
+        renderGmailMessages(result?.messages ?? gmailSuspiciousList, result?.refreshedAt ?? gmailLastRefreshed, result.error);
+      } else {
+        setDashboardStatus(STATUS_CONNECTED);
+        renderGmailMessages(result?.messages ?? gmailSuspiciousList, result?.refreshedAt ?? gmailLastRefreshed, null);
+      }
     } else {
       const msg = result?.error
         ? `Connection failed: ${result.error}`
@@ -264,6 +273,7 @@ async function handleGmailConnect() {
     connectGmailButton.removeAttribute('disabled');
     connectGmailButton.textContent = 'Connect Gmail';
     connectGmailButton.classList.remove('connected');
+    renderGmailMessages(gmailSuspiciousList, gmailLastRefreshed, error.message);
   } finally {
     gmailConnecting = false;
   }
@@ -378,15 +388,32 @@ if (window.scamShield?.onAlert) {
 
 if (window.scamShield?.onBootstrap) {
   window.scamShield.onBootstrap((payload) => {
-    updateGmailUI(payload?.gmailConnected, payload?.email);
+    const connected = payload?.gmailConnected ?? payload?.connected;
+    updateGmailUI(connected, payload?.email);
     setDashboardVisible(true);
-    setDashboardStatus(gmailConnected ? STATUS_CONNECTED : STATUS_DEFAULT);
+    const statusMessage = payload?.error
+      ? `Gmail error: ${payload.error}`
+      : connected
+      ? STATUS_CONNECTED
+      : STATUS_DEFAULT;
+    setDashboardStatus(statusMessage);
+    renderGmailMessages(payload?.messages ?? gmailSuspiciousList, payload?.refreshedAt ?? gmailLastRefreshed, payload?.error || null);
   });
 }
 
 if (window.scamShield?.onGmailStatus) {
   window.scamShield.onGmailStatus((payload) => {
     updateGmailUI(payload?.connected, payload?.email);
+    setGmailRefreshing(false);
+    if (payload?.error) {
+      setDashboardStatus(`Gmail error: ${payload.error}`);
+    } else if (payload?.connected) {
+      setDashboardStatus(STATUS_CONNECTED);
+    }
+    renderGmailMessages(payload?.messages ?? gmailSuspiciousList, payload?.refreshedAt ?? gmailLastRefreshed, payload?.error || null);
+    if (payload?.error && !gmailConnected) {
+      refreshGmailButton?.setAttribute('disabled', 'true');
+    }
   });
 }
 
@@ -409,3 +436,5 @@ if (window.scamShield?.onAnalysisComplete) {
 
 // Set initial dashboard messaging
 setDashboardStatus(STATUS_DEFAULT);
+renderGmailMessages([], null, 'Connect Gmail to start scanning inbox.');
+setGmailRefreshing(false);

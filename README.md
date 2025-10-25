@@ -106,6 +106,7 @@ assets/
 - Hidden by default so the app stays invisible on the desktop.
 - Medium/high risk events animate a white & blue Cluely-style dropdown in the top-right corner.
 - The tray menu exposes sample triggers to preview the animation while developing.
+- The dashboard now surfaces recent suspicious Gmail messages and manual refresh controls once connected.
 
 ## What's Real vs Mock
 
