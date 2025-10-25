@@ -1,13 +1,16 @@
 // Cluely Scam Detector - Main Process (MERGED: Avani's UI + Ved's Backend)
 // Real-time scam detection with URLScan.io, Gmail monitoring, and clipboard/window tracking
 
+// CRITICAL: Load Electron FIRST before any other modules (including dotenv)
+const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, desktopCapturer, globalShortcut } = require('electron');
+
+// Now load other modules
 require('dotenv').config();
 
 const path = require('path');
 const fs = require('fs/promises');
 const http = require('http');
 const { google } = require('googleapis');
-const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, desktopCapturer, globalShortcut } = require('electron');
 const { LRUCache } = require('lru-cache');
 
 // Ved's backend components
@@ -16,6 +19,7 @@ const { scoreRisk } = require('../core/scorer');
 const { ClipboardMonitor } = require('../core/clipboard-monitor');
 const { URLFilter } = require('../core/url-filter');
 const { scanQueue } = require('../core/scan-queue');
+const { scanScreenshotForURLs } = require('../core/screen-ocr');
 const { queryFetchAgent } = require('../infra/fetchAgent');
 const { transcribeAudio } = require('../infra/deepgram');
 const { emailVerifier } = require('../infra/email-verifier');
@@ -52,7 +56,7 @@ let activeWindowMonitorInterval;
 const urlFilter = new URLFilter();
 const scanCache = new LRUCache({
   max: 500, // Cache up to 500 scanned URLs
-  ttl: 1000 * 60 * 60 // 1 hour TTL
+  ttl: 1000 * 60 * 10 // 10 minute TTL (reduced from 1 hour for more responsive scanning)
 });
 
 // Load user whitelist/blacklist rules
@@ -609,17 +613,44 @@ async function orchestrateAnalysis({ url, audioFile, autoDetected = false } = {}
     });
   }
 
-  // Show alert on overlay if high risk
-  if (assessment.risk_score >= 70 && overlayWindow && !overlayWindow.isDestroyed()) {
+  // Show alert on overlay if ANY suspicious activity detected (lowered threshold for more visibility)
+  if (assessment.risk_score >= 15 && overlayWindow && !overlayWindow.isDestroyed()) {
+    console.log(`🚨 [Main] Sending warning badge to overlay - Risk: ${assessment.risk_score}% URL: ${url || audioFile}`);
+
+    // Generate recommendations based on risk level
+    const recommendations = assessment.risk_score >= 70
+      ? [
+          'Do NOT click any links or download files',
+          'Do NOT enter personal information or passwords',
+          'Close this page immediately',
+          'Report this to your IT security team if work-related'
+        ]
+      : assessment.risk_score >= 45
+      ? [
+          'Verify the sender/website independently',
+          'Do not share sensitive information',
+          'Look for security indicators (HTTPS, correct domain)',
+          'When in doubt, contact the company directly'
+        ]
+      : [
+          'Proceed with caution',
+          'Verify the source independently',
+          'Look for suspicious signs (typos, urgency, threats)',
+          'Trust your instincts - if it feels off, it probably is'
+        ];
+
     overlayWindow.webContents.send('show-warning', {
       risk: assessment.risk_score,
       reason: assessment.summary,
+      url: url || audioFile,
       analysis: {
-        signals: assessment.rawSignals || [],
-        recommendations: assessment.recommendations || []
+        signals: assessment.explanations || [],
+        recommendations: recommendations
       },
       timestamp: Date.now()
     });
+  } else {
+    console.log(`ℹ️ [Main] No badge shown - Risk: ${assessment.risk_score}%, Overlay exists: ${!!overlayWindow}`);
   }
 
   return assessment;
@@ -651,10 +682,10 @@ ipcMain.handle('start-monitoring', async () => {
     console.log('[ScamShield] Clipboard monitoring started');
   }
 
-  // Start active window monitoring
+  // Start screen scanning (every 2 seconds for faster threat detection)
   if (!activeWindowMonitorInterval) {
-    activeWindowMonitorInterval = setInterval(checkActiveWindow, 3000);
-    console.log('[ScamShield] Active window monitoring started');
+    activeWindowMonitorInterval = setInterval(checkActiveWindow, 2000);
+    console.log('[ScamShield] 🚀 Fast URL scanning started (every 2 seconds)');
   }
 
   console.log('✅ Monitoring started');
@@ -706,62 +737,178 @@ ipcMain.handle('manual-scan', async () => {
 });
 
 // ============================================================================
-// ACTIVE WINDOW MONITORING (Ved's Backend)
+// SCREEN SCANNING WITH OCR (Avani's Feature + Ved's Backend)
 // ============================================================================
 
+/**
+ * Capture the primary screen and save to temp file
+ * @returns {Promise<string|null>} Path to screenshot file, or null if failed
+ */
+async function captureScreen() {
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 }
+    });
+
+    if (sources.length === 0) {
+      console.error('[ScreenScan] No screens found');
+      return null;
+    }
+
+    // Get the primary screen
+    const primarySource = sources[0];
+    const thumbnail = primarySource.thumbnail;
+
+    // Save to temp file
+    const tempPath = path.join(app.getPath('temp'), `cluely-screen-${Date.now()}.png`);
+    await fs.writeFile(tempPath, thumbnail.toPNG());
+
+    console.log('[ScreenScan] ✅ Screenshot saved:', tempPath);
+    return tempPath;
+  } catch (error) {
+    console.error('[ScreenScan] Screenshot failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Scan the screen for URLs using OCR and analyze them
+ */
 async function checkActiveWindow() {
   if (!isMonitoring) {
     return;
   }
 
   try {
-    const window = await activeWin({
-      accessibilityPermission: true, // Required to get URL on macOS
-      screenRecordingPermission: false // We don't need screen recording
+    console.log('[ScreenScan] 📸 Capturing screen...');
+
+    // Step 1: Check active window for browser URL bar
+    let browserUrls = [];
+    try {
+      const window = await activeWin({
+        accessibilityPermission: true,
+        screenRecordingPermission: false
+      });
+
+      if (window?.url) {
+        browserUrls.push(window.url);
+        console.log('[ScreenScan] Browser URL from address bar:', window.url);
+      }
+    } catch (error) {
+      // Accessibility not granted, skip
+    }
+
+    // Step 2: Try to capture screen and extract URLs via OCR (optional)
+    let ocrUrls = [];
+    try {
+      const screenshotPath = await captureScreen();
+
+      if (screenshotPath) {
+        // Extract URLs from screenshot using OCR
+        console.log('[ScreenScan] 🔍 Attempting OCR scan...');
+        ocrUrls = await scanScreenshotForURLs(screenshotPath);
+
+        // Clean up screenshot file
+        try {
+          await fs.unlink(screenshotPath);
+        } catch (err) {
+          // Ignore cleanup errors
+        }
+      }
+    } catch (error) {
+      console.log('[ScreenScan] OCR scan skipped:', error.message);
+      console.log('[ScreenScan] ℹ️ Continuing with browser URL detection only');
+    }
+
+    // Combine both sources
+    const allUrls = [...new Set([...browserUrls, ...ocrUrls])];
+
+    if (allUrls.length === 0) {
+      console.log('[ScreenScan] No URLs found (try copying URLs or using clipboard)');
+      return;
+    }
+
+    console.log(`[ScreenScan] Found ${allUrls.length} URLs total (browser: ${browserUrls.length}, OCR: ${ocrUrls.length})`);
+
+    if (allUrls.length === 0) {
+      return;
+    }
+
+    // Analyze all URLs and categorize them
+    const urlAnalysis = allUrls.map(url => {
+      let status = '✅ NEW';
+      let reason = '';
+
+      if (!urlFilter.shouldScan(url)) {
+        status = '🔒 FILTERED';
+        reason = 'known-safe domain';
+      } else if (scanCache.has(url)) {
+        const cacheEntry = scanCache.get(url);
+        const minutesAgo = Math.floor((Date.now() - cacheEntry.timestamp) / 60000);
+        status = '⏭️ CACHED';
+        reason = `scanned ${minutesAgo}m ago`;
+      } else if (scanQueue.isQueued(url)) {
+        status = '⏳ QUEUED';
+        reason = 'in scan queue';
+      }
+
+      return { url, status, reason };
     });
 
-    // Check if window has a URL (only browser windows have this)
-    if (!window?.url) {
-      return;
-    }
-
-    const url = window.url;
-
-    // Skip if same as last checked URL
-    if (url === lastActiveWindowUrl) {
-      return;
-    }
-
-    lastActiveWindowUrl = url;
-    console.log('[ScamShield] Active window URL changed:', url);
-
-    // Check if URL should be scanned
-    if (!urlFilter.shouldScan(url)) {
-      console.log('[ScamShield] URL filtered (known-safe domain), skipping');
-      return;
-    }
-
-    // Check if already scanned recently
-    if (scanCache.has(url)) {
-      console.log('[ScamShield] URL already scanned recently, skipping');
-      return;
-    }
-
-    // Check if already in queue
-    if (scanQueue.isQueued(url)) {
-      console.log('[ScamShield] URL already in scan queue, skipping');
-      return;
-    }
-
-    // Mark as scanned and trigger analysis
-    scanCache.set(url, true);
-    console.log('[ScamShield] Auto-scanning URL from active window...');
-
-    orchestrateAnalysis({ url, autoDetected: true }).catch(error => {
-      console.error('[ScamShield] Auto-scan failed:', error);
+    // Print detailed analysis
+    console.log('[ScreenScan] 📋 Detected URLs:');
+    urlAnalysis.forEach(({ url, status, reason }) => {
+      const reasonStr = reason ? ` (${reason})` : '';
+      console.log(`  ${status} ${url}${reasonStr}`);
     });
+
+    // Count statistics
+    const stats = {
+      new: urlAnalysis.filter(u => u.status === '✅ NEW').length,
+      cached: urlAnalysis.filter(u => u.status === '⏭️ CACHED').length,
+      filtered: urlAnalysis.filter(u => u.status === '🔒 FILTERED').length,
+      queued: urlAnalysis.filter(u => u.status === '⏳ QUEUED').length
+    };
+
+    console.log(`[ScreenScan] 📊 Summary: ${stats.new} new, ${stats.cached} cached, ${stats.filtered} filtered, ${stats.queued} queued`);
+
+    if (stats.new === 0) {
+      console.log('[ScreenScan] ℹ️ No new URLs to scan');
+      return;
+    }
+
+    // Scan only new URLs
+    const newUrls = urlAnalysis.filter(u => u.status === '✅ NEW');
+    console.log(`[ScreenScan] 🚀 Starting scan of ${newUrls.length} new URL(s)...`);
+
+    // Prioritize browser URLs (from address bar) - scan them first
+    // These are most likely what the user is actively viewing
+    const browserNewUrls = newUrls.filter(({ url }) => browserUrls.includes(url));
+    const ocrNewUrls = newUrls.filter(({ url }) => !browserUrls.includes(url));
+
+    const prioritizedUrls = [...browserNewUrls, ...ocrNewUrls];
+
+    if (browserNewUrls.length > 0) {
+      console.log(`[ScreenScan] 🎯 Prioritizing ${browserNewUrls.length} browser URL(s) first`);
+    }
+
+    for (const { url } of prioritizedUrls) {
+      // Mark as scanned with timestamp
+      scanCache.set(url, {
+        timestamp: Date.now(),
+        scannedAt: new Date().toISOString()
+      });
+
+      const priority = browserUrls.includes(url) ? '🎯 PRIORITY' : '🔍';
+      console.log(`[ScreenScan] ${priority} Scanning: ${url}`);
+
+      orchestrateAnalysis({ url, autoDetected: true }).catch(error => {
+        console.error(`[ScreenScan] ❌ Scan failed for ${url}:`, error.message);
+      });
+    }
   } catch (error) {
-    // Silently fail - this is expected if accessibility permissions aren't granted
+    console.error('[ScreenScan] Screen scan failed:', error.message);
   }
 }
 
@@ -859,20 +1006,20 @@ function createTray() {
       }
     },
     {
-      label: '✓ Auto-Scan Active Window',
+      label: '✓ Auto-Scan Screen (OCR)',
       type: 'checkbox',
       checked: true,
       click: (menuItem) => {
         if (menuItem.checked) {
           if (!activeWindowMonitorInterval) {
-            activeWindowMonitorInterval = setInterval(checkActiveWindow, 3000);
-            console.log('[ScamShield] Active window monitoring enabled');
+            activeWindowMonitorInterval = setInterval(checkActiveWindow, 2000);
+            console.log('[ScamShield] 🚀 Fast URL scanning enabled (every 2 seconds)');
           }
         } else {
           if (activeWindowMonitorInterval) {
             clearInterval(activeWindowMonitorInterval);
             activeWindowMonitorInterval = null;
-            console.log('[ScamShield] Active window monitoring disabled');
+            console.log('[ScamShield] Screen OCR scanning disabled');
           }
         }
       }
@@ -948,19 +1095,24 @@ app.whenReady().then(async () => {
 
       // Check if already scanned recently
       if (scanCache.has(url)) {
-        console.log('[ScamShield] URL already scanned recently, skipping');
+        const cacheEntry = scanCache.get(url);
+        const minutesAgo = Math.floor((Date.now() - cacheEntry.timestamp) / 60000);
+        console.log(`[ScamShield] ⏭️ URL already scanned ${minutesAgo}m ago, skipping`);
         return;
       }
 
       // Check if already in queue
       if (scanQueue.isQueued(url)) {
-        console.log('[ScamShield] URL already in scan queue, skipping');
+        console.log('[ScamShield] ⏳ URL already in scan queue, skipping');
         return;
       }
 
-      // Mark as scanned and trigger analysis
-      scanCache.set(url, true);
-      console.log('[ScamShield] Auto-scanning URL from clipboard...');
+      // Mark as scanned with timestamp and trigger analysis
+      scanCache.set(url, {
+        timestamp: Date.now(),
+        scannedAt: new Date().toISOString()
+      });
+      console.log('[ScamShield] 🚀 Auto-scanning URL from clipboard:', url);
 
       orchestrateAnalysis({ url, autoDetected: true }).catch(error => {
         console.error('[ScamShield] Auto-scan failed:', error);

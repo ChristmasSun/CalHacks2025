@@ -100,5 +100,23 @@
     "fingerprint": "587e4c1233a09cf7592cc2b7ec730b4be30438adb0b7e460af2d61325e539bd7",
     "timestamp": 1761384324528,
     "scanDate": "2025-10-25T09:25:24.528Z"
+  },
+  {
+    "url": "https://claude.ai/chat/484409bc-a714-40f8-bac4-a6fe5081b929",
+    "fingerprint": "4a31ccec28c0978f033becda45162d0888d59baeeaed382742519142994accf1",
+    "timestamp": 1761426226662,
+    "scanDate": "2025-10-25T21:03:46.662Z"
+  },
+  {
+    "url": "https://web.stanford.edu/class/math51/stanford/math51book.pdf",
+    "fingerprint": "60e1e577dbee60457eeb0f1cce7bb768a2aeb00008148a6b1a79c3742aa2b466",
+    "timestamp": 1761426243022,
+    "scanDate": "2025-10-25T21:04:03.022Z"
+  },
+  {
+    "url": "https://login.stanford.edu/idp/profile/SAML2/Redirect/SSO?execution=e1s2",
+    "fingerprint": "fcce94485e424b4f3aca406372717c9a75653505d8ecb29fcbd204ed0682aa73",
+    "timestamp": 1761426262884,
+    "scanDate": "2025-10-25T21:04:22.884Z"
   }
 ]

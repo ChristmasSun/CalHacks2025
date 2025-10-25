@@ -5,7 +5,15 @@
  * No permissions required - uses Electron's built-in clipboard API.
  */
 
-const { clipboard } = require('electron');
+// Lazy-load electron to avoid module loading issues
+let clipboard;
+function getClipboard() {
+  if (!clipboard) {
+    clipboard = require('electron').clipboard;
+  }
+  return clipboard;
+}
+
 const { urlHistory } = require('./url-history');
 
 class ClipboardMonitor {
@@ -16,8 +24,8 @@ class ClipboardMonitor {
     this.onURL = options.onURL || (() => {});
     this.skipAlreadyScanned = options.skipAlreadyScanned !== false; // Default to true
 
-    // Enhanced URL regex that matches most URL patterns
-    this.urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
+    // Ultra-comprehensive URL regex - captures FULL URLs including query strings and fragments
+    this.urlRegex = /https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)/gi;
   }
 
   /**
@@ -27,12 +35,21 @@ class ClipboardMonitor {
     console.log('[ClipboardMonitor] Starting clipboard monitoring (checking every', this.pollInterval, 'ms)');
 
     this.interval = setInterval(() => {
-      const currentText = clipboard.readText();
+      const clipboard = getClipboard();
 
-      // Only process if clipboard content changed
+      // Check both plain text and HTML content
+      const currentText = clipboard.readText();
+      const htmlContent = clipboard.readHTML();
+
+      // Process plain text URLs
       if (currentText && currentText !== this.lastText) {
         this.lastText = currentText;
         this.checkForURLs(currentText);
+      }
+
+      // Process HTML hyperlinks
+      if (htmlContent) {
+        this.checkForHyperlinks(htmlContent);
       }
     }, this.pollInterval);
   }
@@ -64,6 +81,54 @@ class ClipboardMonitor {
         } catch (error) {
           // Invalid URL, skip silently
           console.log('[ClipboardMonitor] Invalid URL format, skipping:', url);
+        }
+      });
+    }
+  }
+
+  /**
+   * Extract URLs from HTML hyperlinks (href attributes)
+   * @param {string} html - HTML content from clipboard
+   */
+  checkForHyperlinks(html) {
+    if (!html) return;
+
+    // Extract all href attributes from <a> tags
+    // Regex pattern: <a [attributes] href="url" [attributes]>
+    const hrefRegex = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>/gi;
+    const matches = [];
+    let match;
+
+    while ((match = hrefRegex.exec(html)) !== null) {
+      matches.push(match[1]);
+    }
+
+    if (matches.length > 0) {
+      console.log(`[ClipboardMonitor] Found ${matches.length} hyperlinks in HTML`);
+
+      matches.forEach(url => {
+        try {
+          // Handle relative URLs by skipping them (we need absolute URLs)
+          if (url.startsWith('/') || url.startsWith('#') || url.startsWith('mailto:')) {
+            return;
+          }
+
+          // Validate URL structure
+          const parsed = new URL(url);
+
+          // Only process http/https URLs
+          if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            // Skip if already scanned
+            if (this.skipAlreadyScanned && urlHistory.hasBeenScanned(url)) {
+              console.log('[ClipboardMonitor] Hyperlink already scanned, skipping:', url);
+              return;
+            }
+
+            console.log('[ClipboardMonitor] Detected hyperlink:', url);
+            this.onURL(url);
+          }
+        } catch (error) {
+          // Invalid URL, skip silently
         }
       });
     }

@@ -99,6 +99,7 @@ function displayScanResult(result) {
                       '#d1fae5';
 
   scanInfo.innerHTML = `
+    ${result.url ? `<div class="scan-url">${result.url}</div>` : ''}
     <div class="scan-risk">
       <span class="risk-value" style="color: ${riskColor}">${result.risk}%</span>
       <span class="risk-label" style="background: ${riskLevelBg}; color: ${riskColor}">${riskLevelText}</span>
