@@ -212,7 +212,7 @@
         margin-top: 18px;
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 16px;
       }
 
       .summary-chip {
@@ -295,6 +295,99 @@
         color: rgba(15, 23, 42, 0.5);
       }
 
+      .gmail-section {
+        border-top: 1px solid rgba(148, 163, 184, 0.18);
+        padding-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .gmail-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .gmail-section-header span {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: rgba(15, 23, 42, 0.75);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .gmail-section-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.72rem;
+        color: rgba(15, 23, 42, 0.5);
+      }
+
+      .gmail-refreshed {
+        font-size: 0.72rem;
+      }
+
+      .gmail-results {
+        display: grid;
+        gap: 10px;
+        max-height: 120px;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+
+      .gmail-item {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 12px;
+        padding: 10px 12px;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+        display: grid;
+        gap: 6px;
+      }
+
+      .gmail-item h4 {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #0f172a;
+      }
+
+      .gmail-item .gmail-meta {
+        font-size: 0.72rem;
+        color: rgba(15, 23, 42, 0.55);
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .gmail-item .gmail-snippet {
+        font-size: 0.78rem;
+        color: rgba(15, 23, 42, 0.68);
+      }
+
+      .gmail-item .gmail-reasons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .gmail-item .gmail-reason {
+        font-size: 0.7rem;
+        background: rgba(37, 99, 235, 0.12);
+        color: #1d4ed8;
+        border-radius: 999px;
+        padding: 3px 8px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .gmail-results .empty-state {
+        font-size: 0.78rem;
+        color: rgba(15, 23, 42, 0.55);
+        margin: 0;
+      }
+
       #alert-url {
         font-size: 0.82rem;
         color: rgba(15, 23, 42, 0.5);
@@ -325,14 +418,26 @@
             <span class="chip-label">Gmail Monitor</span>
             <span id="gmail-status-text">Not connected</span>
           </div>
-          <p class="dashboard-copy">
-            Connect Gmail to automatically scan visible emails and URLs for phishing or malware indicators.
-          </p>
-          <button id="connect-gmail" class="primary-button">Connect Gmail</button>
-          <p id="dashboard-status" class="dashboard-status">No scans yet. Hit the tray menu to try a sample URL.</p>
-        </section>
+      <p class="dashboard-copy">
+        Connect Gmail to automatically scan visible emails and URLs for phishing or malware indicators.
+      </p>
+      <button id="connect-gmail" class="primary-button">Connect Gmail</button>
+      <p id="dashboard-status" class="dashboard-status">No scans yet. Hit the tray menu to try a sample URL.</p>
+      <div class="gmail-section">
+        <div class="gmail-section-header">
+          <span>Suspicious Inbox Alerts</span>
+          <div class="gmail-section-actions">
+            <span id="gmail-refreshed" class="gmail-refreshed"></span>
+            <button id="refresh-gmail" class="ghost-button" type="button">Refresh</button>
+          </div>
+        </div>
+        <div id="gmail-results" class="gmail-results">
+          <p class="empty-state">Connect Gmail to start scanning inbox.</p>
+        </div>
       </div>
-    </div>
+    </section>
+  </div>
+</div>
     <div id="alert-root" class="alert-root alert-hidden">
       <div class="alert-card">
         <span id="accent-pill" class="accent-pill"></span>

@@ -1,3 +1,6 @@
+// Load environment variables from .env file
+require('dotenv').config();
+
 const path = require('path');
 const fs = require('fs/promises');
 const http = require('http');
@@ -10,6 +13,9 @@ const { scoreRisk } = require('../core/scorer');
 const { ClipboardMonitor } = require('../core/clipboard-monitor');
 const { URLFilter } = require('../core/url-filter');
 const { scanQueue } = require('../core/scan-queue');
+const { queryFetchAgent } = require('../infra/fetchAgent');
+const { transcribeAudio } = require('../infra/deepgram');
+const activeWin = require('active-win');
 
 process.on('unhandledRejection', (reason) => {
   console.error('[ScamShield] Unhandled promise rejection:', reason);
@@ -25,9 +31,40 @@ let gmailConnected = false;
 let gmailTokenPath;
 let gmailTokens = null;
 let gmailProfile = null;
+let gmailSuspiciousMessages = [];
+let gmailLastRefreshedAt = null;
+let gmailOAuthClient = null;
+
+const GMAIL_SUSPICIOUS_KEYWORDS = [
+  'verify your account',
+  'urgent action required',
+  'reset your password',
+  'confirm your identity',
+  'wire transfer',
+  'payment required',
+  'bitcoin',
+  'gift card',
+  'suspend(ed) account',
+  'login from new device',
+  'tax refund',
+  'banking alert',
+  'invoice attached'
+];
+
+const GMAIL_URGENT_PHRASES = [
+  'act now',
+  'immediate attention',
+  'final notice',
+  'avoid penalties',
+  'legal action',
+  'security alert'
+];
+
+const GMAIL_SUSPICIOUS_TLDS = ['.ru', '.cn', '.zip', '.xyz', '.top', '.loan', '.click', '.lol'];
 
 // Auto-scanning components
 let clipboardMonitor;
+let activeWindowMonitorInterval;
 const urlFilter = new URLFilter();
 const scanCache = new LRUCache({
   max: 500, // Cache up to 500 scanned URLs
@@ -36,6 +73,181 @@ const scanCache = new LRUCache({
 
 // Load user whitelist/blacklist rules
 urlFilter.loadUserRules();
+
+// Track last seen URL to avoid duplicate scans
+let lastActiveWindowUrl = null;
+
+function attachTokenListener(oauthClient, redirectUri) {
+  if (!oauthClient) {
+    return;
+  }
+  oauthClient.removeAllListeners('tokens');
+  oauthClient.on('tokens', (tokens) => {
+    gmailTokens = {
+      ...(gmailTokens || {}),
+      ...tokens,
+      redirectUri
+    };
+    persistGmailTokens(gmailTokens, redirectUri).catch((error) => {
+      console.warn('[ScamShield] Failed to persist refreshed Gmail tokens:', error.message);
+    });
+  });
+}
+
+function buildGmailStatusPayload(extra = {}) {
+  return {
+    connected: gmailConnected,
+    email: gmailProfile?.email || null,
+    messages: gmailSuspiciousMessages,
+    refreshedAt: gmailLastRefreshedAt,
+    ...extra
+  };
+}
+
+function emitGmailStatus(extra = {}) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('gmail-status', buildGmailStatusPayload(extra));
+  }
+}
+
+async function getActiveOAuthClient() {
+  if (gmailOAuthClient) {
+    return gmailOAuthClient;
+  }
+  if (!gmailTokens?.refresh_token) {
+    return null;
+  }
+  const redirectUri = gmailTokens.redirectUri || process.env.GOOGLE_REDIRECT_URI || 'http://127.0.0.1';
+  const client = createOAuthClient(redirectUri);
+  client.setCredentials(gmailTokens);
+  attachTokenListener(client, redirectUri);
+  gmailOAuthClient = client;
+  return client;
+}
+
+function extractHeader(headers = [], name) {
+  const header = headers.find((entry) => entry.name?.toLowerCase() === name.toLowerCase());
+  return header?.value || null;
+}
+
+function parseEmailAddress(raw = '') {
+  const match = raw.match(/<([^>]+)>/);
+  return (match ? match[1] : raw).trim().toLowerCase();
+}
+
+function evaluateMessageRisk({ subject, snippet, fromAddress }) {
+  const reasons = [];
+  const subjectLower = (subject || '').toLowerCase();
+  const snippetLower = (snippet || '').toLowerCase();
+  const email = parseEmailAddress(fromAddress || '');
+
+  GMAIL_SUSPICIOUS_KEYWORDS.forEach((keyword) => {
+    if (subjectLower.includes(keyword) || snippetLower.includes(keyword)) {
+      reasons.push(`Keyword: ${keyword}`);
+    }
+  });
+
+  GMAIL_URGENT_PHRASES.forEach((phrase) => {
+    if (subjectLower.includes(phrase) || snippetLower.includes(phrase)) {
+      reasons.push(`Urgency: ${phrase}`);
+    }
+  });
+
+  if (email) {
+    const domain = email.split('@')[1] || '';
+    GMAIL_SUSPICIOUS_TLDS.forEach((tld) => {
+      if (domain.endsWith(tld)) {
+        reasons.push(`Suspicious domain (${tld})`);
+      }
+    });
+  }
+
+  if (!reasons.length && snippetLower.includes('http')) {
+    reasons.push('Contains external link');
+  }
+
+  return Array.from(new Set(reasons));
+}
+
+async function refreshGmailData(oauthClient) {
+  if (!gmailConnected) {
+    gmailSuspiciousMessages = [];
+    const payload = buildGmailStatusPayload({ error: 'Gmail not connected.' });
+    emitGmailStatus({ error: 'Gmail not connected.' });
+    return payload;
+  }
+
+  try {
+    const client = oauthClient || (await getActiveOAuthClient());
+    if (!client) {
+      throw new Error('Missing Gmail session credentials. Please reconnect.');
+    }
+
+    const gmail = google.gmail({ version: 'v1', auth: client });
+
+    const listResponse = await gmail.users.messages.list({
+      userId: 'me',
+      maxResults: 20,
+      q: 'newer_than:14d'
+    });
+
+    const messageRefs = listResponse.data.messages || [];
+    const suspicious = [];
+
+    for (const ref of messageRefs) {
+      if (suspicious.length >= 5) {
+        break;
+      }
+      try {
+        const detail = await gmail.users.messages.get({
+          userId: 'me',
+          id: ref.id,
+          format: 'metadata',
+          metadataHeaders: ['Subject', 'From', 'Date']
+        });
+
+        const headers = detail.data.payload?.headers || [];
+        const subject = extractHeader(headers, 'Subject') || '(no subject)';
+        const fromValue = extractHeader(headers, 'From') || 'Unknown sender';
+        const dateValue = extractHeader(headers, 'Date') || null;
+        const snippet = detail.data.snippet || '';
+
+        const reasons = evaluateMessageRisk({
+          subject,
+          snippet,
+          fromAddress: fromValue
+        });
+
+        if (reasons.length) {
+          const parsedDate = dateValue ? new Date(dateValue) : null;
+          suspicious.push({
+            id: ref.id,
+            subject,
+            from: fromValue,
+            snippet,
+            date: dateValue,
+            displayDate: parsedDate ? parsedDate.toLocaleString() : 'Unknown',
+            reasons
+          });
+        }
+      } catch (error) {
+        console.warn('[ScamShield] Failed to inspect Gmail message:', error.message);
+      }
+    }
+
+    gmailSuspiciousMessages = suspicious;
+    gmailLastRefreshedAt = new Date().toISOString();
+
+    const payload = buildGmailStatusPayload();
+    emitGmailStatus();
+    return payload;
+  } catch (error) {
+    console.error('[ScamShield] Gmail refresh failed:', error.message);
+    const payload = buildGmailStatusPayload({ error: error.message });
+    emitGmailStatus({ error: error.message });
+    return payload;
+  }
+}
 
 function assertGoogleCredentials() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -93,11 +305,16 @@ async function restoreGmailSession() {
     const redirectUri = stored.redirectUri || process.env.GOOGLE_REDIRECT_URI || 'http://127.0.0.1';
     const oauthClient = createOAuthClient(redirectUri);
     oauthClient.setCredentials(stored);
+    attachTokenListener(oauthClient, redirectUri);
+
+    gmailTokens = { ...stored, redirectUri };
+    gmailOAuthClient = oauthClient;
 
     const profile = await fetchGmailProfile(oauthClient);
-    gmailTokens = stored;
     gmailProfile = profile;
     gmailConnected = true;
+
+    await refreshGmailData(oauthClient);
     return true;
   } catch (error) {
     console.warn('[ScamShield] Failed to restore Gmail session:', error.message);
@@ -221,13 +438,17 @@ async function startGmailOAuthFlow() {
   }
 
   const profile = await fetchGmailProfile(authResult.oauthClient);
-  await persistGmailTokens(authResult.tokens, redirectUri);
 
   gmailTokens = { ...authResult.tokens, redirectUri };
   gmailProfile = profile;
   gmailConnected = true;
+  gmailOAuthClient = authResult.oauthClient;
+  attachTokenListener(gmailOAuthClient, redirectUri);
 
-  return { email: profile.email };
+  await persistGmailTokens(gmailTokens, redirectUri);
+
+  const refreshPayload = await refreshGmailData(gmailOAuthClient);
+  return refreshPayload;
 }
 
 function shouldDisplayAlert(assessment) {
@@ -308,8 +529,8 @@ async function orchestrateAnalysis({ url, audioFile, autoDetected = false } = {}
   const infraResult = {
     url,
     sandboxMetadata,
-    agentFindings: url ? await require('../infra/fetchAgent').queryFetchAgent({ url }) : null,
-    transcript: audioFile ? await require('../infra/deepgram').transcribeAudio({ filePath: audioFile }) : null
+    agentFindings: url ? await queryFetchAgent({ url }) : null,
+    transcript: audioFile ? await transcribeAudio({ filePath: audioFile }) : null
   };
 
   const enriched = await enrichWithScrapedMetadata(infraResult);
@@ -397,6 +618,26 @@ function createTray() {
           if (clipboardMonitor) {
             clipboardMonitor.stop();
             console.log('[ScamShield] Clipboard monitoring disabled');
+          }
+        }
+      }
+    },
+    {
+      label: '✓ Auto-Scan Browser Tabs',
+      type: 'checkbox',
+      checked: true,
+      click: (menuItem) => {
+        if (menuItem.checked) {
+          if (!activeWindowMonitorInterval) {
+            activeWindowMonitorInterval = setInterval(checkActiveWindow, 3000);
+            console.log('[ScamShield] Active window monitoring enabled');
+          }
+        } else {
+          if (activeWindowMonitorInterval) {
+            clearInterval(activeWindowMonitorInterval);
+            activeWindowMonitorInterval = null;
+            lastActiveWindowUrl = null;
+            console.log('[ScamShield] Active window monitoring disabled');
           }
         }
       }
@@ -503,6 +744,62 @@ app.whenReady().then(async () => {
   clipboardMonitor.start();
   console.log('[ScamShield] Auto-scanning enabled (clipboard monitoring active)');
 
+  // Start active window URL monitoring (scans URLs in browser tabs)
+  async function checkActiveWindow() {
+    try {
+      const window = await activeWin({
+        accessibilityPermission: true, // Required to get URL on macOS
+        screenRecordingPermission: false // We don't need screen recording
+      });
+
+      // Check if window has a URL (only browser windows have this)
+      if (window && window.url) {
+        const url = window.url;
+
+        // Only process if URL changed
+        if (url !== lastActiveWindowUrl) {
+          lastActiveWindowUrl = url;
+          console.log('[ActiveWindow] Browser URL detected:', url);
+
+          // Apply same filtering logic as clipboard
+          if (!urlFilter.shouldScan(url)) {
+            console.log('[ActiveWindow] URL filtered (known-safe domain), skipping');
+            return;
+          }
+
+          if (scanCache.has(url)) {
+            console.log('[ActiveWindow] URL already scanned recently, skipping');
+            return;
+          }
+
+          if (scanQueue.isQueued(url)) {
+            console.log('[ActiveWindow] URL already in scan queue, skipping');
+            return;
+          }
+
+          // Mark as scanned and trigger analysis
+          scanCache.set(url, true);
+          console.log('[ActiveWindow] Auto-scanning URL from active browser tab...');
+
+          orchestrateAnalysis({ url, autoDetected: true }).catch(error => {
+            console.error('[ActiveWindow] Auto-scan failed:', error);
+          });
+        }
+      }
+    } catch (error) {
+      // Accessibility permission not granted - fail silently
+      if (error.message?.includes('require assistive access')) {
+        console.log('[ActiveWindow] Accessibility permission required but not granted (disabled)');
+      } else {
+        console.error('[ActiveWindow] Error:', error.message);
+      }
+    }
+  }
+
+  // Poll active window every 3 seconds
+  activeWindowMonitorInterval = setInterval(checkActiveWindow, 3000);
+  console.log('[ScamShield] Active window monitoring enabled (checks every 3 seconds)');
+
   if (mainWindow) {
     mainWindow.once('ready-to-show', () => {
       const payload = {
@@ -560,6 +857,9 @@ app.on('before-quit', () => {
   if (clipboardMonitor) {
     clipboardMonitor.stop();
   }
+  if (activeWindowMonitorInterval) {
+    clearInterval(activeWindowMonitorInterval);
+  }
 });
 
 ipcMain.handle('analyze-input', async (_event, payload) => orchestrateAnalysis(payload));
@@ -573,20 +873,15 @@ ipcMain.on('hide-alert', () => {
 
 ipcMain.handle('connect-gmail', async () => {
   if (gmailConnected && gmailProfile?.email) {
-    return { connected: true, email: gmailProfile.email };
+    return buildGmailStatusPayload();
   }
 
   try {
     const result = await startGmailOAuthFlow();
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('gmail-status', {
-        connected: true,
-        email: result.email
-      });
-    }
-    return { connected: true, email: result.email };
+    return result;
   } catch (error) {
     console.error('[ScamShield] Gmail connection failed:', error);
+    emitGmailStatus({ error: error.message });
     return { connected: false, error: error.message };
   }
 });
@@ -594,8 +889,14 @@ ipcMain.handle('connect-gmail', async () => {
 ipcMain.handle('hide-dashboard', async () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     clearTimeout(alertTimer);
+    mainWindow.setAlwaysOnTop(false);
     mainWindow.hide();
     return { hidden: true };
   }
   return { hidden: false };
+});
+
+ipcMain.handle('refresh-gmail', async () => {
+  const payload = await refreshGmailData();
+  return payload;
 });
