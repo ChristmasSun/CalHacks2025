@@ -1,13 +1,16 @@
 // Detectify Scam Detector - Main Process (MERGED: Avani's UI + Ved's Backend)
 // Real-time scam detection with URLScan.io, Gmail monitoring, and clipboard/window tracking
 
+// CRITICAL: Load Electron FIRST before any other modules (including dotenv)
+const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, desktopCapturer, globalShortcut } = require('electron');
+
+// Now load other modules
 require('dotenv').config();
 
 const path = require('path');
 const fs = require('fs/promises');
 const http = require('http');
 const { google } = require('googleapis');
-const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, desktopCapturer, globalShortcut } = require('electron');
 const { LRUCache } = require('lru-cache');
 
 // Ved's backend components
@@ -17,6 +20,7 @@ const { ClipboardMonitor } = require('../core/clipboard-monitor');
 const { ScreenOCRMonitor } = require('../core/screen-ocr-monitor');
 const { URLFilter } = require('../core/url-filter');
 const { scanQueue } = require('../core/scan-queue');
+const { scanScreenshotForURLs } = require('../core/screen-ocr');
 const { ScanHistory } = require('../core/scan-history');
 const { demoMode } = require('../core/demo-mode');
 const { queryFetchAgent } = require('../infra/fetchAgent');
