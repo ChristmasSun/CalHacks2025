@@ -4,179 +4,54 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scam Shield</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-        font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
-        background: linear-gradient(160deg, #0f172a, #1e293b);
-        color: #e2e8f0;
-      }
-
-      body {
-        margin: 0;
-        padding: 24px;
-      }
-
-      .card {
-        background: rgba(15, 23, 42, 0.9);
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.45);
-      }
-
-      header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 16px;
-      }
-
-      header h1 {
-        margin: 0;
-        font-size: 1.15rem;
-        letter-spacing: 0.015em;
-      }
-
-      form {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 8px;
-        margin-bottom: 10px;
-      }
-
-      input[type="url"] {
-        flex: 1;
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        background: rgba(15, 23, 42, 0.75);
-        color: inherit;
-        outline: none;
-        transition: border 0.2s ease;
-      }
-
-      input[type="url"]:focus {
-        border-color: #22d3ee;
-        box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
-      }
-
-      button {
-        padding: 10px 16px;
-        border-radius: 10px;
-        border: none;
-        background: linear-gradient(135deg, #0ea5e9, #22d3ee);
-        color: #0f172a;
-        font-weight: 600;
-        cursor: pointer;
-        transition: opacity 0.2s ease;
-      }
-
-      button[disabled] {
-        opacity: 0.5;
-        cursor: progress;
-      }
-
-      .drop-zone {
-        border: 1px dashed rgba(148, 163, 184, 0.5);
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 14px;
-        background: rgba(30, 41, 59, 0.6);
-        text-align: center;
-        font-size: 0.85rem;
-        color: rgba(226, 232, 240, 0.85);
-        transition: border 0.2s ease, background 0.2s ease;
-      }
-
-      .drop-zone.dragover {
-        border-color: #22d3ee;
-        background: rgba(14, 165, 233, 0.15);
-      }
-
-      .status {
-        margin: 10px 0 18px;
-        font-size: 0.85rem;
-        color: rgba(226, 232, 240, 0.8);
-      }
-
-      .score-board {
-        display: flex;
-        gap: 12px;
-        align-items: baseline;
-        margin-bottom: 12px;
-      }
-
-      .score {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #22d3ee;
-      }
-
-      .level {
-        font-size: 0.9rem;
-        padding: 4px 10px;
-        border-radius: 999px;
-        background: rgba(148, 163, 184, 0.2);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-      }
-
-      ul {
-        margin: 0;
-        padding-left: 18px;
-        display: grid;
-        gap: 6px;
-        font-size: 0.85rem;
-      }
-
-      .section-title {
-        margin: 18px 0 6px;
-        font-size: 0.8rem;
-        letter-spacing: 0.08em;
-        opacity: 0.7;
-        text-transform: uppercase;
-      }
-
-      .transcript {
-        font-size: 0.8rem;
-        background: rgba(15, 23, 42, 0.7);
-        border-radius: 10px;
-        padding: 12px;
-        border: 1px solid rgba(148, 163, 184, 0.15);
-      }
-    </style>
+    <title>Cluely Scam Detector</title>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="card">
+    <div class="container">
       <header>
-        <h1>Scam Shield</h1>
+        <h1>Cluely Scam Detector</h1>
       </header>
-      <form id="analyze-form">
-        <input
-          id="url-input"
-          type="url"
-          placeholder="https://example.site/login"
-          autocomplete="off"
-          required
-        />
-        <button id="analyze-button" type="submit">Scan</button>
-      </form>
-      <div id="drop-zone" class="drop-zone">Drop a voicemail file (*.wav, *.mp3) to scan audio.</div>
-      <p id="status" class="status">Waiting for a URL or audio sample.</p>
-      <div class="score-board">
-        <span id="score" class="score">0</span>
-        <span id="level" class="level">UNKNOWN</span>
+
+      <button id="scan-button" class="scan-btn">Scan Screen</button>
+
+      <div id="result-container" class="result-container hidden">
+        <h2>Detection Result</h2>
+        <div class="result-content">
+          <div class="risk-score">
+            <span class="label">Risk Score:</span>
+            <span id="risk-score" class="value">--</span>
+          </div>
+          <div class="reason">
+            <span class="label">Reason:</span>
+            <p id="reason-text">--</p>
+          </div>
+        </div>
       </div>
-      <p id="summary">No scans yet.</p>
-      <p class="section-title">Key Findings</p>
-      <ul id="explanations"></ul>
-      <p class="section-title">Transcript</p>
-      <div id="transcript-output" class="transcript">No audio scanned.</div>
-      <p class="section-title">Agent Persona</p>
-      <p id="agent-persona">n/a</p>
+
+      <div id="status" class="status">Ready to scan</div>
     </div>
-    <script defer src="./renderer.js"></script>
+
+    <!-- Source picker modal - select which screen/window to scan -->
+    <div id="source-picker-modal" class="source-picker-modal hidden">
+      <div class="picker-content">
+        <h2>Select Screen or Window</h2>
+        <p class="picker-subtitle">Choose what you want to scan for scams</p>
+        <div id="source-grid" class="source-grid"></div>
+        <button id="close-picker" class="close-picker-btn">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Alert overlay - shown when scam risk > 70 -->
+    <div id="alert-overlay" class="alert-overlay hidden">
+      <div class="alert-content">
+        <div class="alert-icon">⚠️</div>
+        <h2 class="alert-title">Scam Detected!</h2>
+        <p id="alert-reason" class="alert-reason"></p>
+        <button id="close-alert" class="close-btn">Close Alert</button>
+      </div>
+    </div>
+
+    <script src="./renderer.js"></script>
   </body>
 </html>

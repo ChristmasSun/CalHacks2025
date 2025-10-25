@@ -1,142 +1,173 @@
-const statusNode = document.getElementById('status');
-const scoreNode = document.getElementById('score');
-const levelNode = document.getElementById('level');
-const summaryNode = document.getElementById('summary');
-const explanationsList = document.getElementById('explanations');
-const transcriptNode = document.getElementById('transcript-output');
-const agentPersonaNode = document.getElementById('agent-persona');
-const dropZone = document.getElementById('drop-zone');
-const urlInput = document.getElementById('url-input');
-const form = document.getElementById('analyze-form');
-const analyzeButton = document.getElementById('analyze-button');
+// Cluely Scam Detector - Renderer Process
+// This file handles the UI logic and screen capture
 
-const hasBridge = Boolean(window.scamShield);
+// DOM elements
+const scanButton = document.getElementById('scan-button');
+const resultContainer = document.getElementById('result-container');
+const riskScoreElement = document.getElementById('risk-score');
+const reasonTextElement = document.getElementById('reason-text');
+const statusElement = document.getElementById('status');
+const alertOverlay = document.getElementById('alert-overlay');
+const alertReasonElement = document.getElementById('alert-reason');
+const closeAlertButton = document.getElementById('close-alert');
+const sourcePickerModal = document.getElementById('source-picker-modal');
+const sourceGrid = document.getElementById('source-grid');
+const closePickerButton = document.getElementById('close-picker');
 
-if (!hasBridge) {
-  statusNode.textContent = 'IPC bridge unavailable. Reload the app.';
-  analyzeButton?.setAttribute('disabled', 'true');
-}
+// Backend API endpoint
+const BACKEND_URL = 'http://localhost:8000/detect';
 
-function setLoading(isLoading, message = 'Analyzing...', options = {}) {
-  const { highlightDropZone = false } = options;
+// Store available sources
+let availableSources = [];
 
-  if (isLoading) {
-    statusNode.textContent = message;
-    analyzeButton?.setAttribute('disabled', 'true');
-    if (highlightDropZone) {
-      dropZone?.classList.add('dragover');
-    }
-  } else {
-    dropZone?.classList.remove('dragover');
-    analyzeButton?.removeAttribute('disabled');
-  }
-}
-
-function renderAssessment(assessment) {
-  if (!assessment) {
-    return;
-  }
-
-  scoreNode.textContent = assessment.risk_score ?? '0';
-  levelNode.textContent = (assessment.risk_level ?? 'unknown').toUpperCase();
-  summaryNode.textContent = assessment.summary ?? 'Analysis complete.';
-
-  explanationsList.innerHTML = '';
-  (assessment.explanations ?? []).forEach((explanation) => {
-    const li = document.createElement('li');
-    li.textContent = explanation;
-    explanationsList.appendChild(li);
-  });
-
-  if (!assessment.explanations?.length) {
-    const li = document.createElement('li');
-    li.textContent = 'No key findings surfaced.';
-    explanationsList.appendChild(li);
-  }
-
-  if (assessment.transcriptSummary) {
-    transcriptNode.textContent = assessment.transcriptSummary;
-  } else {
-    transcriptNode.textContent = 'No audio scanned.';
-  }
-
-  if (assessment.agentPersona) {
-    agentPersonaNode.textContent = assessment.agentPersona;
-  } else {
-    agentPersonaNode.textContent = 'n/a';
-  }
-
-  const timestamp = new Date(assessment.generatedAt ?? Date.now()).toLocaleTimeString();
-  statusNode.textContent = `Scan finished at ${timestamp}.`;
-}
-
-async function triggerAnalysis(payload, message, options) {
-  if (!hasBridge) {
-    return;
-  }
-  setLoading(true, message, options);
+// Handle scan button click - show source picker
+scanButton.addEventListener('click', async () => {
   try {
-    const assessment = await window.scamShield.analyze(payload);
-    renderAssessment(assessment);
+    statusElement.textContent = 'Loading available screens...';
+    scanButton.disabled = true;
+
+    // Get available sources
+    availableSources = await window.electronAPI.getSources();
+
+    // Show source picker
+    displaySourcePicker(availableSources);
   } catch (error) {
-    statusNode.textContent = `Failed: ${error.message}`;
-  } finally {
-    setLoading(false);
+    console.error('Error loading sources:', error);
+    statusElement.textContent = `Error: ${error.message}`;
+    scanButton.disabled = false;
   }
-}
+});
 
-async function handleSubmit(event) {
-  event.preventDefault();
-  const url = urlInput.value.trim();
-  if (!url) {
-    statusNode.textContent = 'Enter a URL to analyze.';
-    return;
-  }
-  await triggerAnalysis({ url }, 'Analyzing URL...');
-}
+// Display source picker modal
+function displaySourcePicker(sources) {
+  // Clear previous sources
+  sourceGrid.innerHTML = '';
 
-function handleDragOver(event) {
-  event.preventDefault();
-  dropZone?.classList.add('dragover');
-}
-
-function handleDragLeave(event) {
-  event.preventDefault();
-  dropZone?.classList.remove('dragover');
-}
-
-async function handleDrop(event) {
-  event.preventDefault();
-  dropZone?.classList.remove('dragover');
-
-  const file = event.dataTransfer?.files?.[0];
-  if (!file || !file.path) {
-    statusNode.textContent = 'Drop a valid audio file.';
+  if (sources.length === 0) {
+    sourceGrid.innerHTML = '<p>No screens or windows found</p>';
     return;
   }
 
-  await triggerAnalysis({ audioFile: file.path }, 'Transcribing audio...', {
-    highlightDropZone: true
+  // Create a card for each source
+  sources.forEach(source => {
+    const card = document.createElement('div');
+    card.className = 'source-card';
+    card.innerHTML = `
+      <img src="${source.thumbnail}" alt="${source.name}" />
+      <p>${source.name}</p>
+    `;
+
+    // Handle click to select this source
+    card.addEventListener('click', () => {
+      sourcePickerModal.classList.add('hidden');
+      captureAndAnalyze(source.id);
+    });
+
+    sourceGrid.appendChild(card);
   });
+
+  // Show the modal
+  sourcePickerModal.classList.remove('hidden');
+  statusElement.textContent = 'Select a screen or window to scan';
+  scanButton.disabled = false;
 }
 
-if (hasBridge) {
-  window.scamShield.onAnalysisComplete((payload) => {
-    const data = payload?.assessment ?? payload;
-    renderAssessment(data);
-  });
+// Close picker button
+closePickerButton.addEventListener('click', () => {
+  sourcePickerModal.classList.add('hidden');
+  statusElement.textContent = 'Ready to scan';
+});
+
+// Capture and analyze selected source
+async function captureAndAnalyze(sourceId) {
+  try {
+    statusElement.textContent = 'Capturing screenshot...';
+    resultContainer.classList.add('hidden');
+    alertOverlay.classList.add('hidden');
+
+    // Capture the selected source
+    const screenshot = await window.electronAPI.captureSource(sourceId);
+
+    statusElement.textContent = 'Analyzing screenshot...';
+
+    // Send screenshot to backend
+    const result = await sendToBackend(screenshot);
+
+    // Display results
+    displayResult(result);
+
+    // Show alert if high risk
+    if (result.risk > 70) {
+      showAlert(result.reason);
+    }
+
+    statusElement.textContent = 'Scan complete!';
+  } catch (error) {
+    console.error('Scan error:', error);
+    statusElement.textContent = `Error: ${error.message}`;
+  }
 }
 
-if (form) {
-  form.addEventListener('submit', handleSubmit);
+// Close alert button handler
+closeAlertButton.addEventListener('click', () => {
+  alertOverlay.classList.add('hidden');
+});
+
+/**
+ * Sends the base64 screenshot to the backend API
+ * Returns the JSON response with { risk: number, reason: string }
+ */
+async function sendToBackend(base64Image) {
+  try {
+    const response = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        image: base64Image
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend returned ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    // Validate response format
+    if (typeof data.risk !== 'number' || typeof data.reason !== 'string') {
+      throw new Error('Invalid response format from backend');
+    }
+
+    return data;
+  } catch (error) {
+    throw new Error(`Backend request failed: ${error.message}`);
+  }
 }
 
-if (dropZone) {
-  ['dragenter', 'dragover'].forEach((eventName) => {
-    dropZone.addEventListener(eventName, handleDragOver);
-  });
-  ['dragleave', 'drop'].forEach((eventName) => {
-    dropZone.addEventListener(eventName, handleDragLeave);
-  });
-  dropZone.addEventListener('drop', handleDrop);
+/**
+ * Displays the detection result in the UI
+ */
+function displayResult(result) {
+  riskScoreElement.textContent = result.risk;
+  reasonTextElement.textContent = result.reason;
+  resultContainer.classList.remove('hidden');
+
+  // Color-code the risk score
+  if (result.risk > 70) {
+    riskScoreElement.style.color = '#ef4444'; // Red
+  } else if (result.risk > 40) {
+    riskScoreElement.style.color = '#f59e0b'; // Orange
+  } else {
+    riskScoreElement.style.color = '#10b981'; // Green
+  }
+}
+
+/**
+ * Shows the full-screen alert overlay for high-risk scams
+ */
+function showAlert(reason) {
+  alertReasonElement.textContent = reason;
+  alertOverlay.classList.remove('hidden');
 }

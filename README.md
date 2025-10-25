@@ -1,15 +1,46 @@
-# CalHacks2025 Scam Detection Prototype
+# Cluely - Real-Time Scam Detection
 
-Starter Electron application that mocks a scam detection flow and surfaces a lightweight tray UI. The renderer can send URLs for analysis, which trickle through mock infra/core layers before returning a risk score notification.
+**Cluely** is an Electron-based desktop app that continuously monitors your screen for potential scams, including suspicious links, fake personas, and phishing attempts on platforms like LinkedIn, Instagram, email, etc.
+
+## Features
+
+- **🔍 Real-time Screen Monitoring**: Automatically scans your screen every 3 seconds
+- **⚠️ Smart Overlays**: Warning badges appear in the corner when scams are detected
+- **📊 Risk Assessment**: Shows percentage likelihood + detailed explanation
+- **🎛️ Control Panel**: Start/stop monitoring and trigger manual scans
+- **🪟 Transparent Overlays**: Non-intrusive warnings that don't block your work
 
 ## Getting Started
+
+### Option 1: Quick Test with Mock Backend (Recommended for MVP Testing)
+
+```bash
+# Install dependencies
+npm install
+
+# Terminal 1 - Start the temporary mock backend
+node temp-backend.js
+
+# Terminal 2 - Start the Electron app
+npm start
+```
+
+The mock backend generates random scam scenarios for testing. **DELETE `temp-backend.js` when you have your real backend ready.**
+
+### Option 2: With Your Real Backend
+
+Make sure your backend is running on `http://localhost:8000/detect`, then:
 
 ```bash
 npm install
 npm start
 ```
 
-`npm start` launches Electron in development mode with the tray UI and hidden renderer window. Use the tray menu to show the window or trigger an example analysis.
+### What Opens
+
+The app opens with:
+1. **Control Panel** (small window) - Start/stop monitoring
+2. **Transparent Overlay** (full-screen, click-through) - Shows warning badges when you start monitoring
 
 ## Building
 
@@ -19,54 +50,65 @@ npm run build
 
 The `build` script runs `electron-builder --dir`, producing packaged output under `dist/`.
 
-## Project Structure
+## How It Works
+
+### Architecture
 
 ```
-src/
-  electron/
-    main.js       # Electron main process entry
-    preload.js    # Secure bridge between renderer and main
-    renderer.js   # Renderer logic + minimal UI interactions
-    index.html    # Hidden UI for tray tooling & drag/drop
-  infra/
-    fetchAgent.js # Mock Fetch.ai agent call
-    sandbox.js    # Mock Playwright/Puppeteer sandbox visit
-    deepgram.js   # Mock Deepgram transcription helper
-    index.js      # Orchestrates analyzeInput()
-  core/
-    scraper.js    # Mock Bright Data enrichment
-    scorer.js     # Risk scoring across signals
-  shared/
-    types.js      # Shared enums/builders for assessment payloads
-assets/
-  icon.png        # App + tray icon
+src/electron/
+  ├── main.js        # Main process - handles screen capture & monitoring
+  ├── preload.js     # IPC bridge for security
+  ├── control.html   # Control panel UI
+  ├── control.js     # Control panel logic
+  ├── overlay.html   # Transparent overlay UI
+  ├── overlay.js     # Warning badge display logic
+  └── style.css      # Shared styles
 ```
 
-## Mock Analysis Flow
+### Flow
 
-1. Renderer calls `window.scamShield.analyze({ url, audioFile })` with the available inputs.
-2. Preload bridges the call to the main process via IPC.
-3. Main process fans out to the infra mocks (Fetch.ai, sandbox, Deepgram) and enriches via core scraping.
-4. Main process returns the result to the renderer and shows a native notification.
+1. **User clicks "Start Monitoring"** in control panel
+2. **Main process creates transparent overlay** window (full-screen, click-through)
+3. **Every 3 seconds**:
+   - Captures screenshot of primary display
+   - Sends base64 image to `http://localhost:8000/detect`
+   - Backend returns `{ risk: number, reason: string }`
+4. **If risk > 30%**: Shows warning badge on overlay with:
+   - 🚨 Icon (animated pulse)
+   - Risk percentage
+   - Explanation text
+   - Auto-dismisses after 5 seconds
+5. **Control panel** shows latest scan result in real-time
 
-You can use this scaffold to plug in real services, swap out the mock agents, and add richer UI elements.
+### Warning Levels
 
-## Prompt Roles
+- **🚨 High Risk (>70%)**: Red badge with urgent warning
+- **⚠️ Medium Risk (40-70%)**: Orange badge
+- **ℹ️ Low Risk (30-40%)**: Blue informational badge
+- **<30%**: No warning shown
 
-Share these snippets with teammates so everyone can drop into their lane quickly:
+## Backend API Requirements
 
-- **⚡ Individual Codex/Claude Prompts** – Quick single-shot instructions for rapid iterations.
-- **👩‍💻 Infra & Agent Engineer Prompt**
-  - Use Fetch.ai SDK to mock agent lookups (`src/infra/fetchAgent.js`).
-  - Stub Playwright/Puppeteer visit flow (`src/infra/sandbox.js`).
-  - Mock Deepgram transcription (`src/infra/deepgram.js`).
-  - Use `analyzeInput({ url, audioFile })` from `src/infra/index.js` to fan out across mocks.
-- **👨‍💻 Scraping & Scoring Engineer Prompt**
-  - Extend `src/core/scraper.js` to mimic Bright Data enrichment (WHOIS, reputation, keywords).
-  - Update `src/core/scorer.js` to reason over redirects, young domains, risky keywords, and transcripts.
-- **🧑‍💻 UI & Shell Engineer Prompt**
-  - Wire Electron tray-only shell in `src/electron/main.js`.
-  - Expose IPC bridge via `src/electron/preload.js`.
-  - Update `src/electron/index.html` + `renderer.js` for URL scans, audio drops, and toast notifications.
+Your backend must expose a POST endpoint:
 
-This repo is now staged so each role can open their respective files and begin prompting/coding in parallel.
+```
+POST http://localhost:8000/detect
+Content-Type: application/json
+
+{
+  "image": "<base64-encoded-png>"
+}
+
+Response:
+{
+  "risk": 85,
+  "reason": "Detected potential phishing link with suspicious domain pattern"
+}
+```
+
+## Configuration
+
+Edit [main.js](src/electron/main.js:94) to adjust:
+- **Scan interval**: Change `3000` (3 seconds) to your preference
+- **Risk threshold**: Change `30` to adjust when warnings appear
+- **Backend URL**: Update `http://localhost:8000/detect`
