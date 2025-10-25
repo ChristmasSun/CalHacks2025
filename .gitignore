@@ -6,7 +6,6 @@ releases/
 *.log
 *.tgz
 .DS_Store
-.env
 .idea/
 .vscode/
 gmail-tokens.json

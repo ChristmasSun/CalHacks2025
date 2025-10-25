@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cluely Overlay</title>
+    <title>Detectify Overlay</title>
     <style>
       * {
         margin: 0;
@@ -249,10 +249,176 @@
       .warning-badge.low .risk-percentage {
         color: #3b82f6;
       }
+
+      /* Top-Right Dropdown Notifications */
+      .notification-container {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        width: 360px;
+        z-index: 10000;
+        pointer-events: none;
+      }
+
+      .notification {
+        background: rgba(28, 28, 30, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 12px;
+        backdrop-filter: blur(120px) saturate(180%);
+        -webkit-backdrop-filter: blur(120px) saturate(180%);
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+        animation: notif-slideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        pointer-events: all;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .notification.hiding {
+        animation: notif-slideUp 0.3s ease;
+      }
+
+      @keyframes notif-slideDown {
+        from {
+          opacity: 0;
+          transform: translateX(100px) scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0) scale(1);
+        }
+      }
+
+      @keyframes notif-slideUp {
+        from {
+          opacity: 1;
+          transform: translateX(0) scale(1);
+        }
+        to {
+          opacity: 0;
+          transform: translateX(50px) scale(0.95);
+        }
+      }
+
+      .notification-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .notification-icon {
+        font-size: 32px;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+
+      .notification-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .notification-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 2px;
+      }
+
+      .notification-subtitle {
+        font-size: 12px;
+        color: #98989d;
+      }
+
+      .notification-close {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #98989d;
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+      }
+
+      .notification-close:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+      }
+
+      .notification-body {
+        font-size: 13px;
+        color: #ebebf5;
+        line-height: 1.5;
+        margin-top: 8px;
+      }
+
+      .notification-url {
+        font-size: 11px;
+        color: #0a84ff;
+        margin-top: 8px;
+        padding: 6px 10px;
+        background: rgba(10, 132, 255, 0.15);
+        border-radius: 8px;
+        border: 1px solid rgba(10, 132, 255, 0.3);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .notification-educational {
+        font-size: 11px;
+        color: #ffb84d;
+        margin-top: 8px;
+        padding: 8px 10px;
+        background: rgba(255, 184, 77, 0.1);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 184, 77, 0.3);
+        line-height: 1.4;
+        font-style: italic;
+      }
+
+      .notification-progress {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #0a84ff, #8b5cf6);
+        animation: notif-progress 5s linear;
+        border-radius: 0 0 0 18px;
+      }
+
+      @keyframes notif-progress {
+        from {
+          width: 100%;
+        }
+        to {
+          width: 0%;
+        }
+      }
+
+      .notification.danger .notification-progress {
+        background: linear-gradient(90deg, #ff453a, #ff6b6b);
+      }
+
+      .notification.warning .notification-progress {
+        background: linear-gradient(90deg, #ff9f0a, #ffb84d);
+      }
+
+      .notification.success .notification-progress {
+        background: linear-gradient(90deg, #32d74b, #4ade80);
+      }
     </style>
   </head>
   <body>
     <div id="warnings-container"></div>
+    <div class="notification-container" id="notification-container"></div>
 
     <script src="./overlay.js"></script>
   </body>
