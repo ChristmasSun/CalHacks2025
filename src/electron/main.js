@@ -1,19 +1,48 @@
 const path = require('path');
-const {
-  app,
-  BrowserWindow,
-  Tray,
-  Menu,
-  ipcMain,
-  Notification
-} = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, screen } = require('electron');
 
 const { analyzeInput } = require('../infra');
 const { enrichWithScrapedMetadata } = require('../core/scraper');
 const { scoreRisk } = require('../core/scorer');
 
+const ALERT_DISPLAY_MS = 10000;
+const ALERT_MARGIN = 18;
 let mainWindow;
 let tray;
+let alertTimer;
+
+function shouldDisplayAlert(assessment) {
+  return assessment?.risk_level && assessment.risk_level !== 'low';
+}
+
+function positionWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+  const { workArea } = screen.getPrimaryDisplay();
+  const [width, height] = [mainWindow.getBounds().width, mainWindow.getBounds().height];
+  const x = Math.floor(workArea.x + workArea.width - width - ALERT_MARGIN);
+  const y = Math.floor(workArea.y + ALERT_MARGIN);
+  mainWindow.setPosition(x, y);
+}
+
+function showAlertWindow(payload) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  clearTimeout(alertTimer);
+  positionWindow();
+  mainWindow.webContents.send('show-alert', payload);
+  mainWindow.setAlwaysOnTop(true, 'screen-saver');
+  mainWindow.showInactive();
+
+  alertTimer = setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.hide();
+    }
+  }, ALERT_DISPLAY_MS);
+}
 
 async function orchestrateAnalysis({ url, audioFile } = {}) {
   if (!url && !audioFile) {
@@ -24,29 +53,17 @@ async function orchestrateAnalysis({ url, audioFile } = {}) {
   const enriched = await enrichWithScrapedMetadata(infraResult);
   const assessment = scoreRisk(enriched);
 
-  if (Notification.isSupported()) {
-    const scoreLabel = `${assessment.risk_score}% Scam Risk`;
-    const icon =
-      assessment.risk_level === 'high'
-        ? '⚠️'
-        : assessment.risk_level === 'medium'
-        ? '🟡'
-        : '🟢';
-    const body = assessment.explanations[0] ?? 'No explanation provided.';
-
-    const notification = new Notification({
-      title: `${icon} ${scoreLabel}`,
-      subtitle: assessment.url ?? 'Unknown source',
-      body
-    });
-    notification.show();
-  }
+  const payload = {
+    assessment,
+    rawSignals: assessment.rawSignals
+  };
 
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('analysis-complete', {
-      assessment,
-      rawSignals: assessment.rawSignals
-    });
+    mainWindow.webContents.send('analysis-complete', payload);
+  }
+
+  if (shouldDisplayAlert(assessment)) {
+    showAlertWindow(payload);
   }
 
   return assessment;
@@ -54,13 +71,17 @@ async function orchestrateAnalysis({ url, audioFile } = {}) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 380,
-    height: 520,
+    width: 360,
+    height: 220,
     show: false,
     resizable: false,
     frame: false,
-    transparent: false,
+    transparent: true,
     skipTaskbar: true,
+    alwaysOnTop: true,
+    hasShadow: false,
+    roundedCorners: true,
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -70,13 +91,8 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
   mainWindow.setMenuBarVisibility(false);
-
-  mainWindow.on('close', (event) => {
-    if (!app.isQuiting) {
-      event.preventDefault();
-      mainWindow.hide();
-    }
-  });
+  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  positionWindow();
 }
 
 function createTray() {
@@ -84,16 +100,6 @@ function createTray() {
   tray.setToolTip('Scam Shield');
 
   const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Show Scanner',
-      click: () => {
-        if (!mainWindow) {
-          return;
-        }
-        mainWindow.show();
-        mainWindow.focus();
-      }
-    },
     {
       label: 'Scan Example URL',
       click: async () => {
@@ -129,16 +135,7 @@ function createTray() {
   ]);
 
   tray.setContextMenu(contextMenu);
-  tray.on('click', () => {
-    if (!mainWindow) {
-      return;
-    }
-    if (mainWindow.isVisible()) {
-      mainWindow.hide();
-    } else {
-      mainWindow.show();
-    }
-  });
+  tray.on('click', () => tray.popUpContextMenu());
 }
 
 app.whenReady().then(() => {
@@ -162,8 +159,9 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('analyze-input', async (_event, payload) => orchestrateAnalysis(payload));
 
-ipcMain.on('show-window', () => {
-  if (mainWindow) {
-    mainWindow.show();
+ipcMain.on('hide-alert', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    clearTimeout(alertTimer);
+    mainWindow.hide();
   }
 });

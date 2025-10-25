@@ -73,13 +73,42 @@ function scoreRisk(enriched) {
 
   let totalScore = 20; // baseline caution
 
+  // URLScan.io security verdicts (highest priority)
+  if (enriched.sandboxMetadata?.security) {
+    const { malicious, hasPhishing, hasMalware, score } = enriched.sandboxMetadata.security;
+
+    if (malicious) {
+      totalScore += 40;
+      explanations.push('URLScan.io flagged this URL as malicious.');
+    }
+
+    if (hasPhishing) {
+      totalScore += 35;
+      explanations.push('Phishing attempt detected by URLScan.io analysis.');
+    }
+
+    if (hasMalware) {
+      totalScore += 35;
+      explanations.push('Malware distribution detected by URLScan.io.');
+    }
+
+    // Add URLScan score contribution (0-100 scale)
+    if (score > 0) {
+      const scoreContribution = Math.min(25, Math.round(score / 4));
+      totalScore += scoreContribution;
+      if (score > 50) {
+        explanations.push(`URLScan.io risk score: ${score}/100`);
+      }
+    }
+  }
+
   const domainAgeSignal = scoreFromDomainAge(enriched.brightData?.whois?.domainAgeDays);
   if (domainAgeSignal.note) {
     explanations.push(domainAgeSignal.note);
     totalScore += domainAgeSignal.score;
   }
 
-  const redirectSignal = scoreFromRedirects(enriched.brightData?.redirects);
+  const redirectSignal = scoreFromRedirects(enriched.sandboxMetadata?.redirects || enriched.brightData?.redirects);
   if (redirectSignal.note) {
     explanations.push(redirectSignal.note);
     totalScore += redirectSignal.score;

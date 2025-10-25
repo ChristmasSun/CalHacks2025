@@ -1,15 +1,47 @@
 # CalHacks2025 Scam Detection Prototype
 
-Starter Electron application that mocks a scam detection flow and surfaces a lightweight tray UI. The renderer can send URLs for analysis, which trickle through mock infra/core layers before returning a risk score notification.
+Electron application that analyzes URLs for scams using **real VM-based analysis via URLScan.io**. Features a lightweight system tray UI that sends URLs for analysis through multiple detection layers before returning a risk score notification.
 
-## Getting Started
+## Features
+
+- **Real URLScan.io Integration** - URLs are analyzed in isolated VMs with malware/phishing detection
+- **Multi-Signal Risk Scoring** - Combines URL sandbox analysis, domain reputation, keyword detection
+- **System Tray Interface** - Lightweight desktop app with notifications
+- **Extensible Architecture** - Easy to add VirusTotal, PhishTank, and other threat intelligence sources
+
+## Quick Start
+
+### 1. Get URLScan.io API Key
+
+1. Sign up at [https://urlscan.io/](https://urlscan.io/)
+2. Get your API key from [https://urlscan.io/user/profile/](https://urlscan.io/user/profile/)
+
+### 2. Configure Environment
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env and add your API key
+# URLSCAN_API_KEY=your_api_key_here
+```
+
+### 3. Install & Run
 
 ```bash
 npm install
 npm start
 ```
 
-`npm start` launches Electron in development mode with the tray UI and hidden renderer window. Use the tray menu to show the window or trigger an example analysis.
+`npm start` launches Electron with the system tray UI. Use the tray menu to show the scanner window or trigger analysis.
+
+### 4. Test URLScan Integration
+
+```bash
+node test-urlscan.js https://example.com
+```
+
+**See [SETUP.md](SETUP.md) for detailed setup instructions and troubleshooting.**
 
 ## Building
 
@@ -30,7 +62,7 @@ src/
     index.html    # Hidden UI for tray tooling & drag/drop
   infra/
     fetchAgent.js # Mock Fetch.ai agent call
-    sandbox.js    # Mock Playwright/Puppeteer sandbox visit
+    sandbox.js    # ✅ REAL URLScan.io VM-based URL analysis
     deepgram.js   # Mock Deepgram transcription helper
     index.js      # Orchestrates analyzeInput()
   core/
@@ -42,14 +74,28 @@ assets/
   icon.png        # App + tray icon
 ```
 
-## Mock Analysis Flow
+## Analysis Flow
 
 1. Renderer calls `window.scamShield.analyze({ url, audioFile })` with the available inputs.
 2. Preload bridges the call to the main process via IPC.
-3. Main process fans out to the infra mocks (Fetch.ai, sandbox, Deepgram) and enriches via core scraping.
-4. Main process returns the result to the renderer and shows a native notification.
+3. Main process fans out to analysis layers:
+   - **URLScan.io** (REAL) - Submits URL to isolated VM sandbox, polls for results
+   - Fetch.ai agent (mock) - Simulates agent-based investigation
+   - Deepgram (mock) - Audio transcription for voice scams
+4. Results are enriched via core scraper (domain age, reputation, keywords).
+5. Risk scorer combines all signals into a 0-100 risk score with explanations.
+6. Main process returns assessment to renderer and shows native notification.
 
-You can use this scaffold to plug in real services, swap out the mock agents, and add richer UI elements.
+## What's Real vs Mock
+
+✅ **Real Integrations:**
+- URLScan.io VM sandbox analysis ([sandbox.js](src/infra/sandbox.js))
+- Risk scoring algorithm ([scorer.js](src/core/scorer.js))
+
+🔄 **Mock Integrations (ready to swap):**
+- Fetch.ai agent analysis ([fetchAgent.js](src/infra/fetchAgent.js))
+- Bright Data scraping ([scraper.js](src/core/scraper.js))
+- Deepgram transcription ([deepgram.js](src/infra/deepgram.js))
 
 ## Prompt Roles
 
