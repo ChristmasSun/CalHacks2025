@@ -15,13 +15,14 @@
     "test:urlscan": "node test-urlscan.js"
   },
   "dependencies": {
-    "node-fetch": "^2.6.1",
     "active-win": "^8.2.1",
     "axios": "^1.12.2",
     "dotenv": "^17.2.3",
     "googleapis": "^131.0.0",
     "lru-cache": "^11.2.2",
+    "node-fetch": "^2.6.1",
     "string-similarity": "^4.0.4",
+    "tesseract.js": "^6.0.1",
     "whoiser": "^2.0.0-beta.9"
   },
   "devDependencies": {

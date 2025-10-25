@@ -81,7 +81,7 @@ function showWarning(warning) {
     <button class="learn-more-btn">Learn More</button>
     <div class="details-section">
       <div class="details-content">
-        <div class="details-title">🔍 How Cluely Analyzed This</div>
+        <div class="details-title">🔍 How Detectify Analyzed This</div>
         <ul class="details-list">
           ${signals.map(signal => `<li>${signal}</li>`).join('')}
         </ul>
@@ -177,3 +177,94 @@ function clearAllWarnings() {
   window.electronAPI.setOverlayClickable(false);
   console.log('🖱️ All warnings cleared, overlay mouse events disabled');
 }
+
+// ============================================================================
+// TOP-RIGHT DROPDOWN NOTIFICATIONS
+// ============================================================================
+
+const notificationContainer = document.getElementById('notification-container');
+let notificationIdCounter = 0;
+
+// Listen for scan results from main process
+window.electronAPI.onScanResult((result) => {
+  console.log('📬 Received scan result notification:', result);
+  showNotification(result);
+});
+
+// Show notification dropdown
+function showNotification(result) {
+  const riskLevelText = result.risk > 70 ? 'HIGH RISK' :
+                        result.risk > 40 ? 'MEDIUM RISK' :
+                        'SAFE';
+
+  const icon = result.risk > 70 ? '⚠️' :
+               result.risk > 40 ? '⚡' :
+               '✓';
+
+  const notificationType = result.risk > 70 ? 'danger' :
+                           result.risk > 40 ? 'warning' :
+                           'success';
+
+  const notificationId = `notification-${notificationIdCounter++}`;
+
+  const notification = document.createElement('div');
+  notification.id = notificationId;
+  notification.className = `notification ${notificationType}`;
+  notification.innerHTML = `
+    <div class="notification-header">
+      <div class="notification-icon">${icon}</div>
+      <div class="notification-content">
+        <div class="notification-title">${riskLevelText}</div>
+        <div class="notification-subtitle">Risk Score: ${result.risk}%</div>
+      </div>
+      <button class="notification-close" onclick="closeNotification('${notificationId}')">×</button>
+    </div>
+    <div class="notification-body">
+      ${result.reason || 'No issues detected'}
+    </div>
+    ${result.url ? `<div class="notification-url">${truncateUrl(result.url)}</div>` : ''}
+    <div class="notification-progress"></div>
+  `;
+
+  notificationContainer.appendChild(notification);
+
+  // Enable clicks on notification container
+  notificationContainer.style.pointerEvents = 'auto';
+
+  // Auto-dismiss after 5 seconds
+  setTimeout(() => {
+    closeNotification(notificationId);
+  }, 5000);
+
+  // Keep max 3 notifications
+  const notifications = notificationContainer.querySelectorAll('.notification');
+  if (notifications.length > 3) {
+    closeNotification(notifications[0].id);
+  }
+}
+
+// Close notification with animation
+function closeNotification(notificationId) {
+  const notification = document.getElementById(notificationId);
+  if (notification) {
+    notification.classList.add('hiding');
+    setTimeout(() => {
+      notification.remove();
+      // If no more notifications, disable clicks
+      if (notificationContainer.children.length === 0) {
+        notificationContainer.style.pointerEvents = 'none';
+      }
+    }, 300);
+  }
+}
+
+// Truncate long URLs for display
+function truncateUrl(url) {
+  if (url.length > 50) {
+    return url.substring(0, 47) + '...';
+  }
+  return url;
+}
+
+// Make closeNotification available globally
+window.closeNotification = closeNotification;

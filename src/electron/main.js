@@ -1,4 +1,4 @@
-// Cluely Scam Detector - Main Process (MERGED: Avani's UI + Ved's Backend)
+// Detectify Scam Detector - Main Process (MERGED: Avani's UI + Ved's Backend)
 // Real-time scam detection with URLScan.io, Gmail monitoring, and clipboard/window tracking
 
 require('dotenv').config();
@@ -14,6 +14,7 @@ const { LRUCache } = require('lru-cache');
 const { enrichWithScrapedMetadata } = require('../core/scraper');
 const { scoreRisk } = require('../core/scorer');
 const { ClipboardMonitor } = require('../core/clipboard-monitor');
+const { ScreenOCRMonitor } = require('../core/screen-ocr-monitor');
 const { URLFilter } = require('../core/url-filter');
 const { scanQueue } = require('../core/scan-queue');
 const { queryFetchAgent } = require('../infra/fetchAgent');
@@ -48,6 +49,7 @@ let gmailOAuthClient = null;
 
 // Auto-scanning components
 let clipboardMonitor;
+let screenOCRMonitor;
 let activeWindowMonitorInterval;
 const urlFilter = new URLFilter();
 const scanCache = new LRUCache({
@@ -103,6 +105,10 @@ function createControlWindow() {
     y: 50,
     alwaysOnTop: true,
     resizable: true,
+    transparent: true,
+    vibrancy: 'ultra-dark', // macOS only - creates native dark blur
+    backgroundColor: '#00000000', // Transparent background
+    hasShadow: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -600,13 +606,20 @@ async function orchestrateAnalysis({ url, audioFile, autoDetected = false } = {}
     autoDetected
   };
 
-  // Send results to control window
+  // Send results to control window AND overlay window (for top-right notifications)
+  const scanResult = {
+    risk: assessment.risk_score || 0,
+    reason: assessment.summary || 'Analysis complete',
+    url: url || audioFile
+  };
+
   if (controlWindow && !controlWindow.isDestroyed()) {
-    controlWindow.webContents.send('scan-result', {
-      risk: assessment.risk_score || 0,
-      reason: assessment.summary || 'Analysis complete',
-      url: url || audioFile
-    });
+    controlWindow.webContents.send('scan-result', scanResult);
+  }
+
+  // Also send to overlay for top-right dropdown notifications
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send('scan-result', scanResult);
   }
 
   // Show alert on overlay if high risk
@@ -675,6 +688,12 @@ ipcMain.handle('stop-monitoring', async () => {
   if (clipboardMonitor) {
     clipboardMonitor.stop();
     console.log('[ScamShield] Clipboard monitoring stopped');
+  }
+
+  // Stop screen OCR monitoring
+  if (screenOCRMonitor) {
+    await screenOCRMonitor.stop();
+    console.log('[ScamShield] Screen OCR monitoring stopped');
   }
 
   // Stop active window monitoring
@@ -831,7 +850,7 @@ function createTray() {
   }
 
   tray = new Tray(trayIcon);
-  tray.setToolTip('Cluely Scam Detector');
+  tray.setToolTip('Detectify Scam Detector');
   console.log('[ScamShield] Tray icon ready');
 
   const contextMenu = Menu.buildFromTemplate([
@@ -858,6 +877,30 @@ function createTray() {
           if (clipboardMonitor) {
             clipboardMonitor.stop();
             console.log('[ScamShield] Clipboard monitoring disabled');
+          }
+        }
+      }
+    },
+    {
+      label: 'Auto-Scan Screen (OCR) [EXPERIMENTAL]',
+      type: 'checkbox',
+      checked: false,
+      click: async (menuItem) => {
+        if (menuItem.checked) {
+          if (screenOCRMonitor) {
+            console.log('[ScamShield] Starting Screen OCR monitoring (experimental)...');
+            try {
+              await screenOCRMonitor.start();
+              console.log('[ScamShield] Screen OCR monitoring enabled');
+            } catch (error) {
+              console.error('[ScamShield] Failed to start Screen OCR:', error);
+              menuItem.checked = false;
+            }
+          }
+        } else {
+          if (screenOCRMonitor) {
+            await screenOCRMonitor.stop();
+            console.log('[ScamShield] Screen OCR monitoring disabled');
           }
         }
       }
@@ -918,16 +961,23 @@ app.whenReady().then(async () => {
   createControlWindow();
   createTray();
 
-  // Register global keyboard shortcut (Cmd/Ctrl + Shift + S)
-  const shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+S', () => {
-    console.log('[ScamShield] Global shortcut triggered');
+  // Register global keyboard shortcut (Cmd/Ctrl + Shift + C to toggle)
+  const shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+C', () => {
+    console.log('[ScamShield] Global shortcut triggered (toggle)');
     if (controlWindow) {
-      controlWindow.show();
+      if (controlWindow.isVisible()) {
+        controlWindow.hide();
+        console.log('[ScamShield] UI hidden');
+      } else {
+        controlWindow.show();
+        controlWindow.focus();
+        console.log('[ScamShield] UI shown');
+      }
     }
   });
 
   if (shortcutRegistered) {
-    console.log('[ScamShield] Keyboard shortcut registered: Cmd/Ctrl+Shift+S');
+    console.log('[ScamShield] Keyboard shortcut registered: Cmd/Ctrl+Shift+C (toggle UI)');
   } else {
     console.warn('[ScamShield] Failed to register keyboard shortcut');
   }
@@ -972,9 +1022,66 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Start clipboard monitoring (but don't start active window monitoring until user clicks "Start")
-  // clipboardMonitor.start();
-  console.log('[ScamShield] Clipboard monitoring initialized (start via control panel)');
+  // Initialize screen OCR monitoring (scans visible URLs on screen)
+  screenOCRMonitor = new ScreenOCRMonitor({
+    scanInterval: 15000, // Check screen every 15 seconds (OCR is CPU-intensive)
+    onURL: (url) => {
+      console.log('[ScamShield] Screen OCR detected URL:', url);
+
+      // Check if URL should be scanned
+      if (!urlFilter.shouldScan(url)) {
+        console.log('[ScamShield] URL filtered (known-safe domain), skipping');
+        return;
+      }
+
+      // Check if already scanned recently
+      if (scanCache.has(url)) {
+        console.log('[ScamShield] URL already scanned recently, skipping');
+        return;
+      }
+
+      // Add to cache
+      scanCache.set(url, { scanned: true, timestamp: Date.now() });
+
+      // Queue the scan
+      scanQueue.add(url, async () => {
+        console.log('[ScamShield] Auto-scanning URL from screen:', url);
+        await orchestrateAnalysis(url, null, { autoDetected: true, source: 'screen-ocr' });
+      });
+    }
+  });
+
+  // Set up screen capture callback for OCR
+  screenOCRMonitor.setCaptureCallback(async () => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1280, height: 720 } // Lower res for faster OCR
+      });
+
+      if (sources.length > 0) {
+        // Get the first screen (primary display)
+        const primarySource = sources.find(s => s.name.includes('Screen')) || sources[0];
+
+        // Convert to PNG buffer for Tesseract
+        const thumbnail = primarySource.thumbnail;
+        const pngBuffer = thumbnail.toPNG();
+
+        return pngBuffer;
+      }
+      return null;
+    } catch (error) {
+      console.error('[ScamShield] Screen capture failed:', error);
+      return null;
+    }
+  });
+
+  // Start clipboard monitoring
+  clipboardMonitor.start();
+  console.log('[ScamShield] Clipboard monitoring started automatically');
+
+  // Screen OCR is disabled by default (experimental feature, can be enabled in tray menu)
+  console.log('[ScamShield] Screen OCR monitoring available (disabled by default - enable in tray menu)');
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -983,9 +1090,12 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   if (clipboardMonitor) {
     clipboardMonitor.stop();
+  }
+  if (screenOCRMonitor) {
+    await screenOCRMonitor.stop();
   }
   if (activeWindowMonitorInterval) {
     clearInterval(activeWindowMonitorInterval);

@@ -1,4 +1,4 @@
-# 🎬 Demo Guide - Cluely Scam Detector
+# 🎬 Demo Guide - Detectify Scam Detector
 
 ## Before Your Demo
 
@@ -61,7 +61,7 @@ DEMO_MODE=false
 **Show:** Control panel window
 
 **Say:**
-> "Cluely is an AI-powered scam detection system that protects you in real-time from phishing emails, fake contacts, and malicious URLs. It monitors everything - your browser, clipboard, and inbox."
+> "Detectify is an AI-powered scam detection system that protects you in real-time from phishing emails, fake contacts, and malicious URLs. It monitors everything - your browser, clipboard, and inbox."
 
 ### 1️⃣ URL Scanning Demo (1-2 minutes)
 
@@ -121,7 +121,7 @@ sarah.johnson@gmail.com
 4. Once connected, show suspicious emails detected
 
 **What to say:**
-> "Connect your Gmail and Cluely automatically scans every email in your inbox. It detects typosquatting like 'g00gle.com' instead of 'google.com', checks sender authenticity via LinkedIn, and flags urgent language patterns that scammers use."
+> "Connect your Gmail and Detectify automatically scans every email in your inbox. It detects typosquatting like 'g00gle.com' instead of 'google.com', checks sender authenticity via LinkedIn, and flags urgent language patterns that scammers use."
 
 **Demo emails shown:**
 - ✅ `notification@paypal.com` - Legitimate
@@ -135,7 +135,7 @@ sarah.johnson@gmail.com
 2. Show auto-detection alert
 
 **What to say:**
-> "No permissions needed! Cluely monitors your clipboard. If you copy a suspicious URL - even if you didn't visit it yet - you get warned immediately. It's like a safety net for copy-paste."
+> "No permissions needed! Detectify monitors your clipboard. If you copy a suspicious URL - even if you didn't visit it yet - you get warned immediately. It's like a safety net for copy-paste."
 
 ### 5️⃣ Closing (30 seconds)
 

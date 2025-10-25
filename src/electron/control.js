@@ -56,11 +56,14 @@ scanBtn.addEventListener('click', async () => {
   scanBtn.disabled = true;
   scanBtn.textContent = 'Scanning...';
 
+  // Show loading state
+  showScanLoading();
+
   await window.electronAPI.manualScan();
 
   setTimeout(() => {
     scanBtn.disabled = false;
-    scanBtn.textContent = 'Manual Scan';
+    scanBtn.textContent = 'Scan';
   }, 1000);
 });
 
@@ -82,28 +85,54 @@ function updateUIState() {
 // Listen for scan results from main process
 window.electronAPI.onScanResult((result) => {
   displayScanResult(result);
+  // Notifications now shown on overlay window (top-right of screen)
 });
 
 // Display scan result
 function displayScanResult(result) {
-  const riskColor = result.risk > 70 ? '#ef4444' :
-                    result.risk > 40 ? '#f59e0b' :
-                    '#10b981';
+  const riskColor = result.risk > 70 ? 'var(--danger)' :
+                    result.risk > 40 ? 'var(--warning)' :
+                    'var(--success)';
 
   const riskLevelText = result.risk > 70 ? 'HIGH RISK' :
                         result.risk > 40 ? 'MEDIUM' :
-                        'LOW RISK';
+                        'SAFE';
 
-  const riskLevelBg = result.risk > 70 ? '#fee2e2' :
-                      result.risk > 40 ? '#fef3c7' :
-                      '#d1fae5';
+  const badgeClass = result.risk > 70 ? 'badge-danger' :
+                     result.risk > 40 ? 'badge-warning' :
+                     'badge-success';
+
+  const icon = result.risk > 70 ? '⚠️' :
+               result.risk > 40 ? '⚡' :
+               '✓';
 
   scanInfo.innerHTML = `
-    <div class="scan-risk">
-      <span class="risk-value" style="color: ${riskColor}">${result.risk}%</span>
-      <span class="risk-label" style="background: ${riskLevelBg}; color: ${riskColor}">${riskLevelText}</span>
+    <div class="scan-result-card fade-in" onclick="this.classList.toggle('expanded')">
+      <div class="scan-result-header">
+        <div class="scan-result-icon">${icon}</div>
+        <div class="scan-result-info">
+          <div class="scan-result-title">${riskLevelText}</div>
+          <div class="scan-result-subtitle">Risk: ${result.risk}%</div>
+        </div>
+        <div class="badge ${badgeClass}" style="margin-left: auto;">${riskLevelText}</div>
+      </div>
+      <div class="scan-result-details">
+        <div class="scan-detail-divider"></div>
+        <p class="scan-detail-text">${result.reason || 'No issues detected'}</p>
+        <div class="scan-detail-tip">Tap to ${result.risk > 40 ? 'see more details' : 'collapse'}</div>
+      </div>
     </div>
-    <p class="scan-reason">${result.reason || 'No issues detected'}</p>
+  `;
+}
+
+// Show loading state during scan
+function showScanLoading() {
+  scanInfo.innerHTML = `
+    <div class="scan-loading fade-in">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Analyzing URL...</div>
+      <div class="loading-subtext">Checking for threats</div>
+    </div>
   `;
 }
 
@@ -175,27 +204,33 @@ gmailBtn.addEventListener('click', async () => {
 
 // Display Gmail status and messages
 function displayGmailStatus(status) {
+  const gmailBadge = document.getElementById('gmail-badge');
+
   if (status.connected && status.email) {
-    gmailStatus.textContent = `Connected as ${status.email}`;
-    gmailStatus.style.color = '#10b981';
+    gmailBadge.textContent = 'Connected';
+    gmailBadge.className = 'badge badge-success';
+    gmailBadge.style.display = 'block';
 
     // Display suspicious messages
     if (status.messages && status.messages.length > 0) {
       gmailMessages.innerHTML = status.messages.map(msg => `
-        <div class="gmail-message">
+        <div class="gmail-message fade-in">
           <h4>${msg.subject}</h4>
-          <div class="from">${msg.from}</div>
-          <div class="reasons">
+          <div class="gmail-from">From: ${msg.from}</div>
+          <div class="reason-tags">
             ${msg.reasons.map(r => `<span class="reason-tag">${r}</span>`).join('')}
           </div>
         </div>
       `).join('');
+      gmailBtn.textContent = 'Refresh Gmail';
     } else {
-      gmailMessages.innerHTML = '<p style="color: #10b981; font-size: 0.85rem;">✅ No suspicious emails found</p>';
+      gmailMessages.innerHTML = '<div class="result-empty">No suspicious emails found</div>';
+      gmailBtn.textContent = 'Refresh Gmail';
     }
   } else {
-    gmailStatus.textContent = 'Not connected';
-    gmailStatus.style.color = '#666';
+    gmailBadge.textContent = 'Not Connected';
+    gmailBadge.className = 'badge badge-warning';
+    gmailBadge.style.display = 'block';
     gmailMessages.innerHTML = '';
   }
 }
@@ -236,14 +271,17 @@ verifyBtn.addEventListener('click', async () => {
 
   // Show initial message with estimated time
   verifyResult.innerHTML = `
-    <p style="color: #666; font-weight: 600;">🔍 Searching LinkedIn...</p>
-    <p style="color: #999; font-size: 0.75rem; margin-top: 5px;">
-      This may take up to 2-3 minutes as we search public LinkedIn profiles
-    </p>
-    <div style="margin-top: 10px; padding: 8px; background: #f0f9ff; border-radius: 5px; border: 1px solid #0ea5e9;">
-      <p style="font-size: 0.75rem; color: #0369a1; margin: 0;">
-        ⏱️ BrightData is discovering profiles... Please wait
-      </p>
+    <div class="fade-in" style="color: var(--text-secondary); font-size: 13px;">
+      <div style="margin-bottom: 8px;">🔍 <strong>Searching LinkedIn...</strong></div>
+      <div style="font-size: 12px; color: var(--text-muted);">
+        This may take up to 2-3 minutes as we search public LinkedIn profiles
+      </div>
+      <div class="contact-box" style="margin-top: 12px;">
+        <div style="font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+          ⏱️ BrightData is discovering profiles...
+        </div>
+        <div class="loading"></div>
+      </div>
     </div>
   `;
 
@@ -252,21 +290,28 @@ verifyBtn.addEventListener('click', async () => {
     console.log('Verification result:', result);
 
     if (result.success) {
-      const color = result.isLegitimate ? '#10b981' : '#ef4444';
+      const badgeClass = result.isLegitimate ? 'badge-success' : 'badge-danger';
       const icon = result.isLegitimate ? '✅' : '⚠️';
       const status = result.isLegitimate ? 'Legitimate' : 'Suspicious';
 
       let html = `
-        <p style="color: ${color}; font-weight: 600; margin-bottom: 5px;">
-          ${icon} ${status} (${result.confidence}% confidence)
-        </p>
+        <div class="fade-in" style="font-size: 13px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+            <span style="font-size: 24px;">${icon}</span>
+            <div>
+              <span class="badge ${badgeClass}">${status}</span>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+                ${result.confidence}% confidence
+              </div>
+            </div>
+          </div>
       `;
 
       // Show contact info if extracted
       if (result.contact) {
-        html += '<div style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 5px;">';
-        html += '<strong style="font-size: 0.8rem;">Extracted Contact:</strong>';
-        html += '<div style="font-size: 0.75rem; margin-top: 5px;">';
+        html += '<div class="contact-box">';
+        html += '<strong>Extracted Contact</strong>';
+        html += '<div class="contact-item">';
         if (result.contact.name) html += `<div>👤 ${result.contact.name}</div>`;
         if (result.contact.email) html += `<div>📧 ${result.contact.email}</div>`;
         if (result.contact.company) html += `<div>🏢 ${result.contact.company}</div>`;
@@ -276,37 +321,33 @@ verifyBtn.addEventListener('click', async () => {
       // Show LinkedIn profile if found
       if (result.linkedInProfile) {
         const profile = result.linkedInProfile;
-        html += '<div style="margin-top: 8px; padding: 8px; background: #e8f4ff; border-radius: 5px; border: 1px solid #0a66c2;">';
-        html += '<strong style="font-size: 0.8rem; color: #0a66c2;">LinkedIn Profile Found:</strong>';
-        html += '<div style="font-size: 0.75rem; margin-top: 5px;">';
-        if (profile.name) html += `<div><strong>${profile.name}</strong></div>`;
-        if (profile.position) html += `<div>${profile.position}</div>`;
-        if (profile.company) html += `<div>@ ${profile.company}</div>`;
-        if (profile.location) html += `<div>📍 ${profile.location}</div>`;
-        if (profile.url) html += `<div><a href="${profile.url}" target="_blank" style="color: #0a66c2;">View Profile</a></div>`;
-        html += '</div></div>';
+        html += '<div class="linkedin-profile">';
+        html += '<strong>LinkedIn Profile Found</strong>';
+        if (profile.name) html += `<div style="font-size: 14px; font-weight: 600; margin-top: 8px;">${profile.name}</div>`;
+        if (profile.position) html += `<div class="contact-item">${profile.position}</div>`;
+        if (profile.company) html += `<div class="contact-item">@ ${profile.company}</div>`;
+        if (profile.location) html += `<div class="contact-item">📍 ${profile.location}</div>`;
+        if (profile.url) html += `<div class="contact-item"><a href="${profile.url}" target="_blank">View Profile</a></div>`;
+        html += '</div>';
       }
 
       if (result.findings && result.findings.length > 0) {
-        html += '<div style="margin-top: 8px;">';
-        html += '<strong style="font-size: 0.8rem;">Findings:</strong>';
-        html += '<ul style="margin: 5px 0 0 20px; font-size: 0.8rem;">';
+        html += '<ul class="findings-list">';
         result.findings.forEach(f => {
           html += `<li>${f}</li>`;
         });
-        html += '</ul></div>';
+        html += '</ul>';
       }
 
       if (result.warnings && result.warnings.length > 0) {
-        html += '<div style="margin-top: 8px;">';
-        html += '<strong style="font-size: 0.8rem; color: #ef4444;">Warnings:</strong>';
-        html += '<ul style="margin: 5px 0 0 20px; font-size: 0.8rem; color: #ef4444;">';
+        html += '<ul class="warnings-list">';
         result.warnings.forEach(w => {
           html += `<li>${w}</li>`;
         });
-        html += '</ul></div>';
+        html += '</ul>';
       }
 
+      html += '</div>';
       verifyResult.innerHTML = html;
     } else {
       verifyResult.innerHTML = `<p style="color: #ef4444;">❌ Error: ${result.error}</p>`;
@@ -316,6 +357,33 @@ verifyBtn.addEventListener('click', async () => {
     verifyResult.innerHTML = `<p style="color: #ef4444;">❌ Error: ${error.message}</p>`;
   } finally {
     verifyBtn.disabled = false;
-    verifyBtn.textContent = 'Verify Contact';
+    verifyBtn.textContent = 'Verify';
   }
 });
+
+// ============================================================================
+// COMPACT MODE TOGGLE
+// ============================================================================
+
+const compactToggle = document.getElementById('compact-toggle');
+let isCompactMode = localStorage.getItem('compactMode') === 'true';
+
+// Apply compact mode on load
+if (isCompactMode) {
+  document.body.classList.add('compact');
+}
+
+// Toggle compact mode
+compactToggle.addEventListener('click', () => {
+  isCompactMode = !isCompactMode;
+  document.body.classList.toggle('compact');
+  localStorage.setItem('compactMode', isCompactMode);
+
+  // Add visual feedback
+  compactToggle.style.transform = 'scale(1.2)';
+  setTimeout(() => {
+    compactToggle.style.transform = 'scale(1)';
+  }, 200);
+});
+
+// Notifications are now handled by the overlay window (top-right of screen)
