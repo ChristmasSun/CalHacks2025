@@ -9,6 +9,7 @@
  */
 
 const { brightDataClient } = require('./brightdata');
+const { linkedInVerifier } = require('./linkedin-verifier');
 const { LRUCache } = require('lru-cache');
 
 // Cache verified emails to avoid duplicate checks

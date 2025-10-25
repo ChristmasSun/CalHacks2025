@@ -42,5 +42,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Text/contact analysis
-  analyzeText: (text) => ipcRenderer.invoke('analyze-text', { text })
+  analyzeText: (text) => ipcRenderer.invoke('analyze-text', { text }),
+
+  // Scan history & stats
+  getScanHistory: () => ipcRenderer.invoke('get-scan-history'),
+  getScanStats: () => ipcRenderer.invoke('get-scan-stats'),
+  getTimelineData: (days) => ipcRenderer.invoke('get-timeline-data', days),
+  clearHistory: () => ipcRenderer.invoke('clear-history'),
+  exportHistory: () => ipcRenderer.invoke('export-history'),
+
+  // Demo mode
+  enableDemoMode: () => ipcRenderer.invoke('enable-demo-mode'),
+  disableDemoMode: () => ipcRenderer.invoke('disable-demo-mode'),
+  startDemoAutoScan: () => ipcRenderer.invoke('start-demo-auto-scan'),
+  stopDemoAutoScan: () => ipcRenderer.invoke('stop-demo-auto-scan')
 });

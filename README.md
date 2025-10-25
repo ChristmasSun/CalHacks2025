@@ -10,7 +10,7 @@ Electron application that analyzes URLs for scams using **real VM-based analysis
 - **Contact Verification** - Paste LinkedIn messages/emails to verify if person is real and email matches public records
 - **Global Keyboard Shortcut** - Press Cmd/Ctrl+Shift+S anywhere to instantly open ScamShield
 - **Multi-Signal Risk Scoring** - Combines URL sandbox analysis, domain reputation, keyword detection
-- **Invisible Tray Agent** - Runs silently and only surfaces a Cluely-style alert overlay on risky findings
+- **Invisible Tray Agent** - Runs silently and only surfaces a Detectify-style alert overlay on risky findings
 - **Gmail Inbox Scanning** - OAuth flow to connect Gmail and flag suspicious messages with AI-powered verification
 - **Clipboard & Screen Awareness** - Auto-detects URLs copied to the clipboard and queues them for scanning
 - **Extensible Architecture** - Easy to add VirusTotal, PhishTank, and other threat intelligence sources
@@ -46,6 +46,38 @@ npm start
 `npm start` launches Electron with the system tray UI. Use the tray menu's sample actions to trigger analyses and preview the alert overlay.
 
 **Quick Access:** Press **Cmd/Ctrl+Shift+S** from anywhere to instantly open the dashboard.
+
+## 🎬 Demo Mode (For Presentations)
+
+**Preparing for a demo or video? Enable instant results!**
+
+```bash
+# Enable demo mode (instant mock results, no 2-3 min wait)
+npm run demo:mode
+
+# Prepare demo data and generate talking points
+npm run demo:prep
+
+# Start the app
+npm start
+```
+
+**📖 Full demo guide:** [QUICK-START-DEMO.md](./QUICK-START-DEMO.md)
+**🎯 Detailed instructions:** [DEMO-README.md](./DEMO-README.md)
+
+**Demo Mode Benefits:**
+- ✅ LinkedIn verification: 1-2 seconds (instead of 2-3 minutes)
+- ✅ Pre-generated realistic mock data
+- ✅ No API failures or timeouts
+- ✅ Perfect for time-constrained presentations
+
+**Switch back to real mode:**
+```bash
+npm run demo:real
+npm start
+```
+
+---
 
 ### 4. Test Integrations
 
@@ -115,7 +147,7 @@ src/
     main.js       # Electron main process entry
     preload.js    # Secure bridge between renderer and main
     renderer.js   # Dashboard + overlay controller for detection alerts
-    index.html    # Cluely-style top-right alert template
+    index.html    # Detectify-style top-right alert template
   infra/
     fetchAgent.js    # Mock Fetch.ai agent call
     sandbox.js       # ✅ REAL URLScan.io VM-based URL analysis
@@ -151,7 +183,7 @@ assets/
 ## Overlay UX
 
 - Hidden by default so the app stays invisible on the desktop.
-- Medium/high risk events animate a white & blue Cluely-style dropdown in the top-right corner.
+- Medium/high risk events animate a white & blue Detectify-style dropdown in the top-right corner.
 - The tray menu exposes sample triggers to preview the animation while developing.
 - The dashboard now surfaces recent suspicious Gmail messages and manual refresh controls once connected.
 
@@ -185,6 +217,6 @@ Share these snippets with teammates so everyone can drop into their lane quickly
 - **🧑‍💻 UI & Shell Engineer Prompt**
   - Maintain the invisible Electron shell in `src/electron/main.js`.
   - Expose IPC bridge via `src/electron/preload.js`.
-  - Shape the Cluely-style overlay in `src/electron/index.html` + `renderer.js`.
+  - Shape the Detectify-style overlay in `src/electron/index.html` + `renderer.js`.
 
 This repo is now staged so each role can open their respective files and begin prompting/coding in parallel.
