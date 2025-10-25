@@ -7,16 +7,22 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --dir"
+    "build": "electron-builder --dir",
+    "demo:prep": "node prepare-demo.js",
+    "demo:mode": "echo 'DEMO_MODE=true' >> .env && echo '✅ Demo mode enabled! Start app with: npm start'",
+    "demo:real": "echo 'DEMO_MODE=false' >> .env && echo '✅ Real mode enabled! Start app with: npm start'",
+    "test:linkedin": "node test-linkedin-verification.js",
+    "test:urlscan": "node test-urlscan.js"
   },
   "dependencies": {
-    "node-fetch": "^2.6.1",
     "active-win": "^8.2.1",
     "axios": "^1.12.2",
     "dotenv": "^17.2.3",
     "googleapis": "^131.0.0",
     "lru-cache": "^11.2.2",
+    "node-fetch": "^2.6.1",
     "string-similarity": "^4.0.4",
+    "tesseract.js": "^6.0.1",
     "whoiser": "^2.0.0-beta.9"
   },
   "devDependencies": {

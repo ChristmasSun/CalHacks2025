@@ -1,4 +1,4 @@
-// Cluely Scam Detector - Renderer Process
+// Detectify Scam Detector - Renderer Process
 // This file handles the UI logic and screen capture
 
 // DOM elements
