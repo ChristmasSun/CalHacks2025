@@ -115,10 +115,54 @@ function scoreRisk(enriched) {
       explanations.push(`URLScan.io risk score: ${urlscanSecurity.score}/100`);
     }
   }
-  // No URLScan data available - start with neutral baseline
+  // No URLScan data available - use heuristics
   else {
-    totalScore = 30; // Slight caution by default
-    explanations.push('No URLScan.io verdict available - limited analysis.');
+    totalScore = 15; // Moderate baseline when URLScan data unavailable
+    explanations.push('⚠️ URLScan.io analysis unavailable - using heuristics only.');
+
+    // HEURISTIC DETECTION: Brand impersonation / typosquatting
+    const url = enriched.url?.toLowerCase() || '';
+    const suspiciousBrands = [
+      { brand: 'spotify', pattern: /spotify/i, legitDomains: ['spotify.com'] },
+      { brand: 'paypal', pattern: /paypal|paypa1|paypai/i, legitDomains: ['paypal.com'] },
+      { brand: 'apple', pattern: /apple|app1e/i, legitDomains: ['apple.com', 'icloud.com'] },
+      { brand: 'amazon', pattern: /amazon|amaz0n/i, legitDomains: ['amazon.com'] },
+      { brand: 'google', pattern: /google|g00gle/i, legitDomains: ['google.com', 'googleapis.com'] },
+      { brand: 'microsoft', pattern: /microsoft|micr0soft/i, legitDomains: ['microsoft.com', 'live.com'] },
+      { brand: 'netflix', pattern: /netflix/i, legitDomains: ['netflix.com'] }
+    ];
+
+    for (const { brand, pattern, legitDomains } of suspiciousBrands) {
+      if (pattern.test(url)) {
+        try {
+          const hostname = new URL(enriched.url).hostname.toLowerCase();
+          const isLegit = legitDomains.some(domain =>
+            hostname === domain || hostname.endsWith('.' + domain)
+          );
+
+          if (!isLegit) {
+            totalScore += 50; // High penalty for brand impersonation
+            explanations.push(`🚨 Possible ${brand.toUpperCase()} brand impersonation detected!`);
+            break;
+          }
+        } catch (err) {
+          // Invalid URL, skip
+        }
+      }
+    }
+
+    // HEURISTIC: Suspicious TLDs commonly used in phishing
+    const suspiciousTLDs = ['.tk', '.ml', '.ga', '.cf', '.gq', '.ws', '.top', '.xyz', '.loan', '.win', '.bid'];
+    if (suspiciousTLDs.some(tld => url.endsWith(tld))) {
+      totalScore += 25;
+      explanations.push('⚠️ Domain uses suspicious TLD commonly used in phishing.');
+    }
+
+    // HEURISTIC: Unusual domain patterns
+    if (/\d{4,}/.test(url)) {
+      totalScore += 10;
+      explanations.push('⚠️ Domain contains unusual number sequences.');
+    }
   }
 
   // ========================================

@@ -23,7 +23,7 @@ window.electronAPI.onClearWarnings(() => {
 function showWarning(warning) {
   console.log('🎨 Creating warning badge for:', warning);
 
-  const { risk, reason, timestamp, analysis } = warning;
+  const { risk, reason, url, timestamp, analysis } = warning;
 
   // Avoid duplicate warnings within 10 seconds
   const warningKey = `${risk}-${reason.substring(0, 50)}`;
@@ -45,12 +45,16 @@ function showWarning(warning) {
   if (risk > 70) {
     severityClass = 'high';
     icon = '🚨';
+    // Play alert sound for high-risk threats
+    playAlertSound('high');
   } else if (risk > 40) {
     severityClass = 'medium';
     icon = '⚠️';
+    playAlertSound('medium');
   } else {
     severityClass = 'low';
     icon = 'ℹ️';
+    playAlertSound('low');
   }
 
   console.log(`📍 Badge severity: ${severityClass} (${risk}%)`);
@@ -77,6 +81,7 @@ function showWarning(warning) {
       <span class="warning-title">Potential Scam Detected</span>
       <span class="risk-percentage">${risk}%</span>
     </div>
+    ${url ? `<div class="warning-url">${url}</div>` : ''}
     <div class="warning-reason">${reason}</div>
     <button class="learn-more-btn">Learn More</button>
     <div class="details-section">
@@ -176,4 +181,42 @@ function clearAllWarnings() {
   activeWarnings.clear();
   window.electronAPI.setOverlayClickable(false);
   console.log('🖱️ All warnings cleared, overlay mouse events disabled');
+}
+
+// Play alert sound based on risk level
+function playAlertSound(severity) {
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Define frequencies and patterns for different severities
+  const patterns = {
+    high: [{ freq: 800, duration: 0.1 }, { freq: 1000, duration: 0.1 }, { freq: 800, duration: 0.1 }],
+    medium: [{ freq: 600, duration: 0.15 }],
+    low: [{ freq: 400, duration: 0.1 }]
+  };
+
+  const pattern = patterns[severity] || patterns.low;
+  let startTime = audioContext.currentTime;
+
+  pattern.forEach(({ freq, duration }) => {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = freq;
+    oscillator.type = 'sine';
+
+    // Envelope for smooth sound
+    gainNode.gain.setValueAtTime(0, startTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.01);
+    gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration);
+
+    startTime += duration + 0.05; // Small gap between beeps
+  });
+
+  console.log(`🔊 Played ${severity} risk alert sound`);
 }
