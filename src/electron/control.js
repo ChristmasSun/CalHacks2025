@@ -233,7 +233,19 @@ verifyBtn.addEventListener('click', async () => {
   console.log('🔍 Verifying contact...');
   verifyBtn.disabled = true;
   verifyBtn.textContent = 'Verifying...';
-  verifyResult.innerHTML = '<p style="color: #666;">Analyzing...</p>';
+
+  // Show initial message with estimated time
+  verifyResult.innerHTML = `
+    <p style="color: #666; font-weight: 600;">🔍 Searching LinkedIn...</p>
+    <p style="color: #999; font-size: 0.75rem; margin-top: 5px;">
+      This may take up to 2-3 minutes as we search public LinkedIn profiles
+    </p>
+    <div style="margin-top: 10px; padding: 8px; background: #f0f9ff; border-radius: 5px; border: 1px solid #0ea5e9;">
+      <p style="font-size: 0.75rem; color: #0369a1; margin: 0;">
+        ⏱️ BrightData is discovering profiles... Please wait
+      </p>
+    </div>
+  `;
 
   try {
     const result = await window.electronAPI.analyzeText(text);
@@ -249,6 +261,31 @@ verifyBtn.addEventListener('click', async () => {
           ${icon} ${status} (${result.confidence}% confidence)
         </p>
       `;
+
+      // Show contact info if extracted
+      if (result.contact) {
+        html += '<div style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 5px;">';
+        html += '<strong style="font-size: 0.8rem;">Extracted Contact:</strong>';
+        html += '<div style="font-size: 0.75rem; margin-top: 5px;">';
+        if (result.contact.name) html += `<div>👤 ${result.contact.name}</div>`;
+        if (result.contact.email) html += `<div>📧 ${result.contact.email}</div>`;
+        if (result.contact.company) html += `<div>🏢 ${result.contact.company}</div>`;
+        html += '</div></div>';
+      }
+
+      // Show LinkedIn profile if found
+      if (result.linkedInProfile) {
+        const profile = result.linkedInProfile;
+        html += '<div style="margin-top: 8px; padding: 8px; background: #e8f4ff; border-radius: 5px; border: 1px solid #0a66c2;">';
+        html += '<strong style="font-size: 0.8rem; color: #0a66c2;">LinkedIn Profile Found:</strong>';
+        html += '<div style="font-size: 0.75rem; margin-top: 5px;">';
+        if (profile.name) html += `<div><strong>${profile.name}</strong></div>`;
+        if (profile.position) html += `<div>${profile.position}</div>`;
+        if (profile.company) html += `<div>@ ${profile.company}</div>`;
+        if (profile.location) html += `<div>📍 ${profile.location}</div>`;
+        if (profile.url) html += `<div><a href="${profile.url}" target="_blank" style="color: #0a66c2;">View Profile</a></div>`;
+        html += '</div></div>';
+      }
 
       if (result.findings && result.findings.length > 0) {
         html += '<div style="margin-top: 8px;">';
