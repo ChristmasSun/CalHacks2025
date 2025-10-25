@@ -161,15 +161,11 @@ class EmailVerifier {
       result.legitimate = false;
     }
 
-    // 4. Domain age check - DISABLED (Bright Data WHOIS API not working correctly)
-    // The current Bright Data implementation returns 404 for WHOIS lookups
-    // TODO: Implement proper WHOIS lookup or use alternative service
-    // Commenting out to avoid error spam:
-    /*
+    // 4. Domain age check via WHOIS (using whoiser library)
     if (this.enabled && parsed.domain) {
       try {
         const whoisData = await brightDataClient.getWhoisData(parsed.domain);
-        if (whoisData.success) {
+        if (whoisData.success && whoisData.whois) {
           const domainAgeCheck = this.checkDomainAge(whoisData.whois);
           if (domainAgeCheck.suspicious) {
             result.riskScore += domainAgeCheck.riskScore;
@@ -177,12 +173,12 @@ class EmailVerifier {
             result.legitimate = false;
           }
           result.details.whois = whoisData.whois;
+          result.details.domainAgeDays = whoisData.whois.domainAgeDays;
         }
       } catch (error) {
         console.warn('[EmailVerifier] WHOIS lookup failed:', error.message);
       }
     }
-    */
 
     // 5. Check subject line and body for urgency/phishing patterns
     const contentCheck = this.checkEmailContent(subject, body);
@@ -333,14 +329,31 @@ class EmailVerifier {
    * Check domain age from WHOIS data
    */
   checkDomainAge(whoisData) {
-    if (!whoisData || !whoisData.creation_date) {
+    // Check if domainAgeDays is already calculated
+    const ageInDays = whoisData.domainAgeDays;
+
+    if (!ageInDays && ageInDays !== 0) {
+      // Fallback: try to parse creation_date
+      if (whoisData.creationDate || whoisData.creation_date) {
+        try {
+          const creationDate = new Date(whoisData.creationDate || whoisData.creation_date);
+          const now = new Date();
+          const calculatedAge = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
+          return this.evaluateDomainAge(calculatedAge);
+        } catch (e) {
+          return { suspicious: false };
+        }
+      }
       return { suspicious: false };
     }
 
-    const creationDate = new Date(whoisData.creation_date);
-    const now = new Date();
-    const ageInDays = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
+    return this.evaluateDomainAge(ageInDays);
+  }
 
+  /**
+   * Evaluate domain age and return risk assessment
+   */
+  evaluateDomainAge(ageInDays) {
     // Very young domains are suspicious for phishing
     if (ageInDays < 30) {
       return {

@@ -9,7 +9,6 @@
  */
 
 const { brightDataClient } = require('./brightdata');
-const axios = require('axios');
 
 class PersonVerifier {
   constructor() {
@@ -132,16 +131,23 @@ class PersonVerifier {
 
     try {
       // 1. Search for person on LinkedIn (via Bright Data)
-      if (this.enabled) {
-        const linkedinData = await this.searchLinkedIn(claimedContact.name, claimedContact.company);
-        if (linkedinData) {
-          result.publicInfo = linkedinData;
-          result.matches.push('Found on LinkedIn');
+      if (this.enabled && claimedContact.linkedin) {
+        // If we have a LinkedIn profile URL, use the fixed Bright Data client
+        const profileUrl = `https://www.linkedin.com/in/${claimedContact.linkedin}/`;
+        const linkedinData = await brightDataClient.searchLinkedIn(profileUrl);
+
+        if (linkedinData && linkedinData.success) {
+          result.publicInfo = linkedinData.profile;
+          result.matches.push('✓ Found on LinkedIn');
           result.confidence += 40;
         } else {
-          result.warnings.push('⚠️ Person not found on LinkedIn or professional networks');
+          result.warnings.push('⚠️ Could not verify LinkedIn profile');
           result.riskScore += 35;
         }
+      } else if (this.enabled) {
+        // No LinkedIn profile URL provided
+        result.warnings.push('LinkedIn profile not provided - limited verification');
+        result.riskScore += 15;
       }
 
       // 2. Verify email domain matches company
@@ -220,45 +226,22 @@ class PersonVerifier {
    * @returns {Promise<Object|null>} LinkedIn profile data or null
    */
   async searchLinkedIn(name, company = null) {
-    if (!this.enabled) {
+    if (!this.enabled || !brightDataClient.linkedinDatasetId) {
+      console.log('[PersonVerifier] LinkedIn search skipped: No dataset_id configured');
       return null;
     }
 
     try {
       console.log(`[PersonVerifier] Searching LinkedIn for: ${name}${company ? ` at ${company}` : ''}`);
 
-      // Use Bright Data to search LinkedIn
-      // Note: This requires LinkedIn dataset access via Bright Data
-      const searchQuery = company ? `${name} ${company}` : name;
+      // Note: This is a simplified implementation
+      // In production, you would need to construct the proper LinkedIn profile URL
+      // For now, we'll skip LinkedIn verification if no specific profile URL is provided
 
-      const response = await axios.post(
-        'https://api.brightdata.com/datasets/v3/scrape',
-        {
-          url: `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(searchQuery)}`,
-          format: 'json',
-          fields: ['name', 'title', 'company', 'email', 'profile_url']
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${brightDataClient.apiToken}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
-      );
-
-      // Parse first result
-      if (response.data && response.data.length > 0) {
-        const profile = response.data[0];
-        return {
-          name: profile.name || null,
-          title: profile.title || null,
-          company: profile.company || null,
-          email: profile.email || null,
-          profileUrl: profile.profile_url || null,
-          source: 'linkedin'
-        };
-      }
+      // If we have a LinkedIn username from parsed text, we can use it
+      // Otherwise, LinkedIn search requires a direct profile URL with the fixed API
+      console.log('[PersonVerifier] LinkedIn verification requires profile URL (e.g., linkedin.com/in/username)');
+      console.log('[PersonVerifier] For general search, consider using alternative methods');
 
       return null;
 

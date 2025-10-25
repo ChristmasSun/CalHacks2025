@@ -1,21 +1,27 @@
 /**
- * Bright Data Threat Intelligence Client
+ * Bright Data Threat Intelligence Client (FIXED)
  *
- * Provides enhanced scam detection capabilities:
- * - WHOIS data collection for domain analysis
- * - Web scraping for phishing indicator detection
- * - Threat intelligence from security sources
+ * Properly integrated with Bright Data's API requirements:
+ * - Correct request format (array of objects)
+ * - dataset_id parameter support
+ * - Async/sync scraping support
+ * - WHOIS via whoiser library (not Bright Data)
  */
 
 const axios = require('axios');
+const { whoisDomain } = require('whoiser');
 
 const BRIGHTDATA_API_BASE = 'https://api.brightdata.com/datasets/v3';
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+const POLL_INTERVAL_MS = 2000; // Poll every 2 seconds
+const MAX_POLL_ATTEMPTS = 30; // Max 60 seconds of polling
 
 class BrightDataClient {
-  constructor(apiToken = process.env.BRIGHTDATA_API_TOKEN) {
-    this.apiToken = apiToken;
-    this.enabled = !!apiToken;
+  constructor(options = {}) {
+    this.apiToken = options.apiToken || process.env.BRIGHTDATA_API_TOKEN;
+    this.linkedinDatasetId = options.linkedinDatasetId || process.env.BRIGHTDATA_LINKEDIN_DATASET_ID;
+    this.customDatasetId = options.customDatasetId || process.env.BRIGHTDATA_CUSTOM_DATASET_ID;
+    this.enabled = !!this.apiToken;
 
     if (!this.enabled) {
       console.warn('[BrightData] API token not configured. Bright Data features disabled.');
@@ -23,36 +29,45 @@ class BrightDataClient {
   }
 
   /**
-   * Extract domain metadata and analyze page content for scam indicators
-   * Uses synchronous scraping for real-time analysis
+   * Analyze URL using Bright Data Web Scraper API (FIXED)
+   *
+   * NOTE: This requires a custom dataset_id from your Bright Data dashboard.
+   * If you don't have one, this method will return an error.
    *
    * @param {string} url - URL to analyze
-   * @returns {Promise<Object>} Analysis results with scam indicators
+   * @param {string} datasetId - Optional dataset ID (uses BRIGHTDATA_CUSTOM_DATASET_ID if not provided)
+   * @returns {Promise<Object>} Analysis results
    */
-  async analyzeUrl(url) {
+  async analyzeUrl(url, datasetId = null) {
     if (!this.enabled) {
-      return { error: 'Bright Data not configured', enabled: false };
+      return {
+        error: 'Bright Data not configured',
+        enabled: false,
+        success: false
+      };
+    }
+
+    const targetDatasetId = datasetId || this.customDatasetId;
+
+    if (!targetDatasetId) {
+      console.warn('[BrightData] No dataset_id configured. Cannot analyze URL.');
+      return {
+        error: 'No dataset_id configured. Set BRIGHTDATA_CUSTOM_DATASET_ID in .env',
+        enabled: true,
+        success: false,
+        help: 'Create a custom dataset at https://brightdata.com/cp/datasets'
+      };
     }
 
     try {
-      console.log('[BrightData] Analyzing URL:', url);
+      console.log(`[BrightData] Analyzing URL with dataset ${targetDatasetId}:`, url);
 
-      // Use Bright Data Web Scraper API to extract page metadata
+      // CORRECT FORMAT: Array of input objects
       const response = await axios.post(
-        `${BRIGHTDATA_API_BASE}/scrape`,
-        {
-          url: url,
-          format: 'json',
-          // Extract key indicators for scam detection
-          fields: [
-            'title',
-            'meta_description',
-            'links',
-            'forms',
-            'scripts',
-            'external_resources'
-          ]
-        },
+        `${BRIGHTDATA_API_BASE}/trigger?dataset_id=${targetDatasetId}&format=json`,
+        [
+          { url: url } // Input as array element
+        ],
         {
           headers: {
             'Authorization': `Bearer ${this.apiToken}`,
@@ -62,18 +77,28 @@ class BrightDataClient {
         }
       );
 
-      const data = response.data;
+      // Response contains snapshot_id for async job
+      const snapshotId = response.data.snapshot_id;
+      console.log(`[BrightData] Job submitted, snapshot_id: ${snapshotId}`);
 
-      // Analyze for scam indicators
-      const indicators = this.detectScamIndicators(data);
+      // Poll for results
+      const results = await this.pollSnapshot(snapshotId);
 
-      return {
-        success: true,
-        url,
-        indicators,
-        rawData: data,
-        timestamp: new Date().toISOString()
-      };
+      if (results.success && results.data && results.data.length > 0) {
+        // Analyze for scam indicators
+        const indicators = this.detectScamIndicators(results.data[0]);
+
+        return {
+          success: true,
+          url,
+          indicators,
+          rawData: results.data[0],
+          snapshotId,
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      return results;
 
     } catch (error) {
       console.error('[BrightData] URL analysis failed:', error.message);
@@ -86,52 +111,124 @@ class BrightDataClient {
   }
 
   /**
-   * Collect WHOIS data for domain risk assessment
+   * Poll for snapshot results (async scraping)
    *
-   * @param {string} domain - Domain to lookup (e.g., 'example.com')
-   * @returns {Promise<Object>} WHOIS data including registration date, registrar, etc.
+   * @param {string} snapshotId - Snapshot ID from trigger request
+   * @returns {Promise<Object>} Snapshot results
    */
-  async getWhoisData(domain) {
-    if (!this.enabled) {
-      return { error: 'Bright Data not configured', enabled: false };
+  async pollSnapshot(snapshotId, maxAttempts = MAX_POLL_ATTEMPTS) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await axios.get(
+          `${BRIGHTDATA_API_BASE}/snapshot/${snapshotId}?format=json`,
+          {
+            headers: {
+              'Authorization': `Bearer ${this.apiToken}`
+            },
+            timeout: REQUEST_TIMEOUT_MS
+          }
+        );
+
+        const status = response.data.status;
+        console.log(`[BrightData] Snapshot ${snapshotId} status: ${status} (attempt ${attempt + 1}/${maxAttempts})`);
+
+        if (status === 'ready') {
+          return {
+            success: true,
+            status: 'ready',
+            data: response.data.data || [],
+            snapshotId
+          };
+        }
+
+        if (status === 'failed') {
+          return {
+            success: false,
+            status: 'failed',
+            error: 'Snapshot job failed',
+            snapshotId
+          };
+        }
+
+        // Status is 'running' or 'pending', wait and retry
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      } catch (error) {
+        console.error(`[BrightData] Polling error (attempt ${attempt + 1}):`, error.message);
+
+        if (attempt === maxAttempts - 1) {
+          return {
+            success: false,
+            error: 'Polling timeout - job took too long',
+            snapshotId
+          };
+        }
+
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+      }
     }
 
-    try {
-      console.log('[BrightData] Fetching WHOIS data for:', domain);
+    return {
+      success: false,
+      error: 'Polling timeout',
+      snapshotId
+    };
+  }
 
-      // Use Bright Data to scrape WHOIS information
-      const response = await axios.post(
-        `${BRIGHTDATA_API_BASE}/scrape`,
-        {
-          url: `https://www.whois.com/whois/${domain}`,
-          format: 'json',
-          fields: [
-            'creation_date',
-            'expiration_date',
-            'registrar',
-            'registrant_country',
-            'name_servers',
-            'status'
-          ]
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiToken}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: REQUEST_TIMEOUT_MS
+  /**
+   * Get WHOIS data using whoiser library (NOT Bright Data)
+   *
+   * This is more reliable and doesn't require Bright Data API calls.
+   *
+   * @param {string} domain - Domain to lookup
+   * @returns {Promise<Object>} WHOIS data
+   */
+  async getWhoisData(domain) {
+    try {
+      console.log('[BrightData/WHOIS] Fetching WHOIS data for:', domain);
+
+      const whoisData = await whoisDomain(domain, {
+        timeout: 10000,
+        follow: 2 // Follow up to 2 redirects
+      });
+
+      // Parse the WHOIS data
+      const domainInfo = whoisData[domain] || {};
+
+      // Extract relevant fields (varies by TLD)
+      const createdDate = this.extractWhoisField(domainInfo, ['created', 'creation date', 'creation_date', 'registered']);
+      const expiresDate = this.extractWhoisField(domainInfo, ['expires', 'expiry date', 'expiration date', 'registry expiry date']);
+      const registrar = this.extractWhoisField(domainInfo, ['registrar']);
+      const status = this.extractWhoisField(domainInfo, ['status', 'domain status']);
+
+      // Calculate domain age
+      let domainAgeDays = null;
+      if (createdDate) {
+        try {
+          const created = new Date(createdDate);
+          const now = new Date();
+          domainAgeDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+        } catch (e) {
+          console.warn('[BrightData/WHOIS] Failed to parse creation date:', createdDate);
         }
-      );
+      }
 
       return {
         success: true,
         domain,
-        whois: response.data,
+        whois: {
+          creationDate: createdDate,
+          expirationDate: expiresDate,
+          registrar,
+          status,
+          domainAgeDays,
+          raw: domainInfo
+        },
         timestamp: new Date().toISOString()
       };
 
     } catch (error) {
-      console.error('[BrightData] WHOIS lookup failed:', error.message);
+      console.error('[BrightData/WHOIS] WHOIS lookup failed:', error.message);
       return {
         error: error.message,
         domain,
@@ -141,27 +238,128 @@ class BrightDataClient {
   }
 
   /**
-   * Batch analyze multiple URLs (asynchronous processing)
-   * Useful for processing large lists of suspicious URLs
-   *
-   * @param {Array<string>} urls - Array of URLs to analyze
-   * @returns {Promise<Object>} Job ID for tracking batch processing
+   * Extract WHOIS field (handles different field names)
    */
-  async batchAnalyze(urls) {
+  extractWhoisField(whoisData, fieldNames) {
+    for (const fieldName of fieldNames) {
+      const value = whoisData[fieldName] || whoisData[fieldName.toLowerCase()];
+      if (value) {
+        // If array, return first element
+        return Array.isArray(value) ? value[0] : value;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Search LinkedIn using Bright Data's LinkedIn People dataset (FIXED)
+   *
+   * @param {string} profileUrl - LinkedIn profile URL
+   * @returns {Promise<Object>} Profile data
+   */
+  async searchLinkedIn(profileUrl) {
+    if (!this.enabled) {
+      return {
+        error: 'Bright Data not configured',
+        enabled: false,
+        success: false
+      };
+    }
+
+    if (!this.linkedinDatasetId) {
+      console.warn('[BrightData] No LinkedIn dataset_id configured.');
+      return {
+        error: 'No LinkedIn dataset_id configured. Set BRIGHTDATA_LINKEDIN_DATASET_ID in .env',
+        enabled: true,
+        success: false,
+        help: 'Get dataset ID from https://brightdata.com/products/datasets/linkedin'
+      };
+    }
+
+    try {
+      console.log('[BrightData] Searching LinkedIn profile:', profileUrl);
+
+      // CORRECT FORMAT: Array with profile URL
+      const response = await axios.post(
+        `${BRIGHTDATA_API_BASE}/trigger?dataset_id=${this.linkedinDatasetId}&format=json`,
+        [
+          { url: profileUrl }
+        ],
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiToken}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: REQUEST_TIMEOUT_MS
+        }
+      );
+
+      const snapshotId = response.data.snapshot_id;
+      console.log(`[BrightData] LinkedIn job submitted, snapshot_id: ${snapshotId}`);
+
+      // Poll for results
+      const results = await this.pollSnapshot(snapshotId);
+
+      if (results.success && results.data && results.data.length > 0) {
+        const profile = results.data[0];
+        return {
+          success: true,
+          profile: {
+            name: profile.name || profile.full_name,
+            title: profile.title || profile.headline,
+            company: profile.company || profile.current_company,
+            email: profile.email || null,
+            profileUrl: profileUrl,
+            location: profile.location,
+            ...profile
+          },
+          snapshotId,
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      return results;
+
+    } catch (error) {
+      console.error('[BrightData] LinkedIn search failed:', error.message);
+      return {
+        error: error.message,
+        profileUrl,
+        success: false
+      };
+    }
+  }
+
+  /**
+   * Batch analyze multiple URLs (async)
+   *
+   * @param {Array<string>} urls - URLs to analyze
+   * @param {string} datasetId - Dataset ID to use
+   * @returns {Promise<Object>} Job info with snapshot_id
+   */
+  async batchAnalyze(urls, datasetId = null) {
     if (!this.enabled) {
       return { error: 'Bright Data not configured', enabled: false };
+    }
+
+    const targetDatasetId = datasetId || this.customDatasetId;
+
+    if (!targetDatasetId) {
+      return {
+        error: 'No dataset_id configured',
+        help: 'Set BRIGHTDATA_CUSTOM_DATASET_ID in .env'
+      };
     }
 
     try {
       console.log(`[BrightData] Starting batch analysis for ${urls.length} URLs`);
 
+      // CORRECT FORMAT: Array of input objects
+      const inputs = urls.map(url => ({ url }));
+
       const response = await axios.post(
-        `${BRIGHTDATA_API_BASE}/trigger`,
-        {
-          dataset_id: 'web_scraper',
-          inputs: urls.map(url => ({ url })),
-          format: 'json'
-        },
+        `${BRIGHTDATA_API_BASE}/trigger?dataset_id=${targetDatasetId}&format=json`,
+        inputs,
         {
           headers: {
             'Authorization': `Bearer ${this.apiToken}`,
@@ -173,9 +371,9 @@ class BrightDataClient {
 
       return {
         success: true,
-        jobId: response.data.snapshot_id,
+        snapshotId: response.data.snapshot_id,
         urlCount: urls.length,
-        message: 'Batch job started. Use getBatchResults() to retrieve results.'
+        message: 'Batch job started. Use pollSnapshot() to retrieve results.'
       };
 
     } catch (error) {
@@ -188,48 +386,9 @@ class BrightDataClient {
   }
 
   /**
-   * Get results from a batch analysis job
-   *
-   * @param {string} jobId - Job ID from batchAnalyze()
-   * @returns {Promise<Object>} Job status and results (if ready)
-   */
-  async getBatchResults(jobId) {
-    if (!this.enabled) {
-      return { error: 'Bright Data not configured', enabled: false };
-    }
-
-    try {
-      const response = await axios.get(
-        `${BRIGHTDATA_API_BASE}/snapshots/${jobId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiToken}`
-          },
-          timeout: REQUEST_TIMEOUT_MS
-        }
-      );
-
-      return {
-        success: true,
-        jobId,
-        status: response.data.status, // 'collecting', 'digesting', 'ready'
-        results: response.data.status === 'ready' ? response.data.data : null
-      };
-
-    } catch (error) {
-      console.error('[BrightData] Failed to get batch results:', error.message);
-      return {
-        error: error.message,
-        jobId,
-        success: false
-      };
-    }
-  }
-
-  /**
    * Analyze scraped data for scam indicators
    *
-   * @param {Object} data - Scraped page data from Bright Data
+   * @param {Object} data - Scraped page data
    * @returns {Object} Detected scam indicators
    */
   detectScamIndicators(data) {
@@ -244,7 +403,7 @@ class BrightDataClient {
       score: 0
     };
 
-    // Check for login/password forms (credential harvesting)
+    // Check for login/password forms
     if (data.forms && data.forms.length > 0) {
       const forms = JSON.stringify(data.forms).toLowerCase();
       indicators.hasLoginForm = forms.includes('login') || forms.includes('signin');
@@ -263,12 +422,12 @@ class BrightDataClient {
       indicators.urgencyLanguage = urgencyWords.some(word => titleLower.includes(word));
     }
 
-    // Check for excessive external links (redirect chains)
+    // Check for excessive external links
     if (data.links && data.links.length > 50) {
       indicators.excessiveExternalLinks = true;
     }
 
-    // Check for suspicious scripts (obfuscation, data exfiltration)
+    // Check for suspicious scripts
     if (data.scripts && data.scripts.length > 0) {
       const scripts = JSON.stringify(data.scripts).toLowerCase();
       indicators.suspiciousScripts = scripts.includes('eval(') ||

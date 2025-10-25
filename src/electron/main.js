@@ -589,10 +589,10 @@ async function orchestrateAnalysis({ url, audioFile, autoDetected = false } = {}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 360,
-    height: 260,
+    width: 420,
+    height: 650,
     show: false,
-    resizable: false,
+    resizable: true, // Allow resizing so user can adjust
     frame: false,
     transparent: true,
     skipTaskbar: true,

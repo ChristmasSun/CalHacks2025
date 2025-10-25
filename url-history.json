@@ -64,5 +64,41 @@
     "fingerprint": "e8318f290d43b5a01947529434cc18cc554ff2b171a6411a209e5991df9e72c5",
     "timestamp": 1761383263445,
     "scanDate": "2025-10-25T09:07:43.445Z"
+  },
+  {
+    "url": "https://console.anthropic.com/settings/keys",
+    "fingerprint": "761903a53055307ac4a286f3bb50ac3d366eb3358824492c6e4336e88ca92851",
+    "timestamp": 1761383949009,
+    "scanDate": "2025-10-25T09:19:09.009Z"
+  },
+  {
+    "url": "https://brightdata.com/cp/deep_lookup",
+    "fingerprint": "9f72f4d1a391c3d217350b91c40f1820ce9f995e1ed9cb83b5e3b12a6f6f7a8f",
+    "timestamp": 1761384226169,
+    "scanDate": "2025-10-25T09:23:46.169Z"
+  },
+  {
+    "url": "https://brightdata.com/cp/datasets/browse",
+    "fingerprint": "33e5dca98e3751174c71b519618f49e3f7942557b28b32ebc7a17b4d5c420beb",
+    "timestamp": 1761384238714,
+    "scanDate": "2025-10-25T09:23:58.714Z"
+  },
+  {
+    "url": "https://brightdata.com/cp/datasets/browse/gd_l1viktl72bvl7bjuj0?id=hl_83a43569&tab=statistics",
+    "fingerprint": "c3f312e324fee422a5bbb083fca57e7ddd8183f1d9ef9247c528c1370e079e21",
+    "timestamp": 1761384272793,
+    "scanDate": "2025-10-25T09:24:32.793Z"
+  },
+  {
+    "url": "https://brightdata.com/cp/mcp?id=hl_83a43569&tab=statistics",
+    "fingerprint": "0afcb804aaf3a02e8855a28c859efdee62661f6510d921a1b8158f32edbc8662",
+    "timestamp": 1761384300928,
+    "scanDate": "2025-10-25T09:25:00.928Z"
+  },
+  {
+    "url": "https://docs.brightdata.com/introduction",
+    "fingerprint": "587e4c1233a09cf7592cc2b7ec730b4be30438adb0b7e460af2d61325e539bd7",
+    "timestamp": 1761384324528,
+    "scanDate": "2025-10-25T09:25:24.528Z"
   }
 ]
