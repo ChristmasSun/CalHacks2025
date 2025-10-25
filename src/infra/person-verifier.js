@@ -9,10 +9,12 @@
  */
 
 const { brightDataClient } = require('./brightdata');
+const { linkedInVerifier } = require('./linkedin-verifier');
 
 class PersonVerifier {
   constructor() {
     this.enabled = brightDataClient.enabled;
+    this.linkedInVerifier = linkedInVerifier;
   }
 
   /**
@@ -104,6 +106,7 @@ class PersonVerifier {
 
   /**
    * Verify if a person exists online and extract their real contact info
+   * Now uses BrightData LinkedIn API for person discovery
    *
    * @param {Object} claimedContact - Contact info from parsed text
    * @returns {Promise<Object>} Verification results
@@ -116,7 +119,8 @@ class PersonVerifier {
       warnings: [],
       publicInfo: null,
       riskScore: 0,
-      riskLevel: 'low'
+      riskLevel: 'low',
+      linkedInProfile: null
     };
 
     console.log('[PersonVerifier] Verifying:', claimedContact.name, claimedContact.email);
@@ -130,27 +134,37 @@ class PersonVerifier {
     }
 
     try {
-      // 1. Search for person on LinkedIn (via Bright Data)
-      if (this.enabled && claimedContact.linkedin) {
-        // If we have a LinkedIn profile URL, use the fixed Bright Data client
-        const profileUrl = `https://www.linkedin.com/in/${claimedContact.linkedin}/`;
-        const linkedinData = await brightDataClient.searchLinkedIn(profileUrl);
+      // 1. ENHANCED: Search for person on LinkedIn using BrightData discover_by=name API
+      console.log('[PersonVerifier] Searching LinkedIn via BrightData API...');
 
-        if (linkedinData && linkedinData.success) {
-          result.publicInfo = linkedinData.profile;
-          result.matches.push('✓ Found on LinkedIn');
-          result.confidence += 40;
-        } else {
-          result.warnings.push('⚠️ Could not verify LinkedIn profile');
-          result.riskScore += 35;
+      const linkedInResult = await this.linkedInVerifier.verifyPerson({
+        email: claimedContact.email,
+        name: claimedContact.name,
+        text: claimedContact.rawText
+      });
+
+      if (linkedInResult.verified) {
+        result.linkedInProfile = linkedInResult.profile;
+        result.matches.push(`✓ Found on LinkedIn: ${linkedInResult.profile.name}`);
+        result.confidence += linkedInResult.confidence;
+
+        // If email matches LinkedIn profile
+        if (linkedInResult.emailMatch === true) {
+          result.matches.push('✓ Email domain matches LinkedIn company');
+          result.verified = true;
+        } else if (linkedInResult.emailMatch === false) {
+          result.warnings.push(linkedInResult.warning || 'Email domain does not match LinkedIn profile');
+          result.riskScore += 40;
         }
-      } else if (this.enabled) {
-        // No LinkedIn profile URL provided
-        result.warnings.push('LinkedIn profile not provided - limited verification');
-        result.riskScore += 15;
+      } else {
+        // LinkedIn search failed or no profile found
+        if (linkedInResult.warning) {
+          result.warnings.push(linkedInResult.warning);
+        }
+        result.riskScore += 30;
       }
 
-      // 2. Verify email domain matches company
+      // 2. Verify email domain matches company (legacy check)
       if (claimedContact.email && claimedContact.company) {
         const emailDomain = claimedContact.email.split('@')[1];
         const companyDomain = this.inferDomainFromCompany(claimedContact.company);
@@ -167,27 +181,12 @@ class PersonVerifier {
             result.riskScore += 40;
           }
         } else if (companyDomain && emailDomain === companyDomain) {
-          result.matches.push('Email domain matches company');
-          result.confidence += 30;
+          result.matches.push('✓ Email domain matches company');
+          result.confidence += 20;
         }
       }
 
-      // 3. Compare claimed email against public profile email (if found)
-      if (result.publicInfo && result.publicInfo.email && claimedContact.email) {
-        const publicEmail = result.publicInfo.email.toLowerCase();
-        const claimedEmail = claimedContact.email.toLowerCase();
-
-        if (publicEmail === claimedEmail) {
-          result.matches.push('✓ Email matches public profile');
-          result.confidence += 30;
-          result.verified = true;
-        } else {
-          result.warnings.push(`⚠️ Email mismatch: claimed "${claimedEmail}" but public profile shows "${publicEmail}"`);
-          result.riskScore += 50;
-        }
-      }
-
-      // 4. Check if email domain is suspicious
+      // 3. Check if email domain is suspicious
       if (claimedContact.email) {
         const emailDomain = claimedContact.email.split('@')[1];
         const suspiciousTLDs = ['.xyz', '.tk', '.ml', '.ga', '.cf', '.top', '.loan', '.click'];
@@ -202,6 +201,9 @@ class PersonVerifier {
       if (result.confidence >= 60) {
         result.verified = true;
       }
+
+      // Cap confidence at 100
+      result.confidence = Math.min(100, result.confidence);
 
       // Determine risk level
       result.riskLevel = result.riskScore >= 70 ? 'high' :

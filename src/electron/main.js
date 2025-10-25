@@ -792,15 +792,19 @@ ipcMain.handle('analyze-text', async (_event, { text }) => {
   try {
     console.log('[ScamShield] Analyzing contact text:', text.substring(0, 100));
 
-    // Use person verifier to check if the person is real
-    const result = await personVerifier.verifyPerson(text);
+    // Parse contact information and verify using LinkedIn
+    const analysis = await personVerifier.analyzeText(text);
+    const verification = analysis.verification;
 
     return {
       success: true,
-      isLegitimate: result.isLegitimate,
-      confidence: result.confidence,
-      findings: result.findings,
-      warnings: result.warnings
+      isLegitimate: verification.verified,
+      confidence: verification.confidence,
+      findings: verification.matches || [],
+      warnings: verification.warnings || [],
+      linkedInProfile: verification.linkedInProfile,
+      riskLevel: verification.riskLevel,
+      contact: analysis.contact
     };
   } catch (error) {
     console.error('[ScamShield] Text analysis failed:', error);
