@@ -649,6 +649,207 @@
         }
       }
 
+      /* Success Celebration Animation */
+      .celebrate {
+        animation: celebrate 0.6s ease;
+      }
+
+      @keyframes celebrate {
+        0% { transform: scale(1); }
+        25% { transform: scale(1.1) rotate(-5deg); }
+        50% { transform: scale(1.2) rotate(5deg); }
+        75% { transform: scale(1.1) rotate(-3deg); }
+        100% { transform: scale(1); }
+      }
+
+      /* Button Ripple Effect */
+      button {
+        position: relative;
+        overflow: hidden;
+      }
+
+      button::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.4);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+      }
+
+      button:active::after {
+        width: 300px;
+        height: 300px;
+      }
+
+      /* Progress Bar */
+      .progress-bar {
+        width: 100%;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 8px;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), #5ac8fa);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+        animation: shimmer 1.5s infinite;
+      }
+
+      @keyframes shimmer {
+        0% { background-position: -100px; }
+        100% { background-position: 200px; }
+      }
+
+      /* Success Checkmark Animation */
+      .success-checkmark {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: block;
+        stroke-width: 3;
+        stroke: var(--success);
+        stroke-miterlimit: 10;
+        margin: 10px auto;
+        animation: checkmark-fill 0.4s ease-in-out 0.4s forwards, checkmark-scale 0.3s ease-in-out 0.9s both;
+      }
+
+      .checkmark-circle {
+        stroke-dasharray: 166;
+        stroke-dashoffset: 166;
+        stroke-width: 3;
+        stroke-miterlimit: 10;
+        stroke: var(--success);
+        fill: none;
+        animation: checkmark-stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+      }
+
+      .checkmark-check {
+        transform-origin: 50% 50%;
+        stroke-dasharray: 48;
+        stroke-dashoffset: 48;
+        animation: checkmark-stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+      }
+
+      @keyframes checkmark-stroke {
+        100% { stroke-dashoffset: 0; }
+      }
+
+      @keyframes checkmark-scale {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      @keyframes checkmark-fill {
+        100% { box-shadow: inset 0 0 0 30px var(--success); }
+      }
+
+      /* Confetti Animation */
+      .confetti {
+        position: fixed;
+        width: 10px;
+        height: 10px;
+        background: var(--accent);
+        position: absolute;
+        animation: confetti-fall 3s ease-out forwards;
+        z-index: 10000;
+      }
+
+      @keyframes confetti-fall {
+        0% {
+          transform: translateY(0) rotate(0deg);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(100vh) rotate(720deg);
+          opacity: 0;
+        }
+      }
+
+      /* Pulse Animation for Stats */
+      .stat-pulse {
+        animation: stat-pulse 0.5s ease;
+      }
+
+      @keyframes stat-pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); color: var(--accent); }
+        100% { transform: scale(1); }
+      }
+
+      /* Loading Dots Animation */
+      .loading-dots::after {
+        content: '';
+        animation: loading-dots 1.5s infinite;
+      }
+
+      @keyframes loading-dots {
+        0%, 20% { content: '.'; }
+        40% { content: '..'; }
+        60%, 100% { content: '...'; }
+      }
+
+      /* Stats Dashboard */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .stat-card {
+        background: rgba(40, 40, 44, 0.6);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+        backdrop-filter: blur(80px) saturate(180%);
+        -webkit-backdrop-filter: blur(80px) saturate(180%);
+        transition: all 0.3s ease;
+      }
+
+      .stat-card:hover {
+        transform: translateY(-2px);
+        background: rgba(60, 60, 64, 0.7);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      }
+
+      .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+        line-height: 1;
+      }
+
+      .stat-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+      }
+
+      .stat-card.stat-danger .stat-value {
+        color: var(--danger);
+      }
+
+      .stat-card.stat-success .stat-value {
+        color: var(--success);
+      }
+
+      .stat-card.stat-warning .stat-value {
+        color: var(--warning);
+      }
+
       /* Compact Mode */
       body.compact .section {
         padding: 12px 20px;
@@ -687,6 +888,52 @@
       <div class="status-bar">
         <div id="status-dot" class="status-dot"></div>
         <div id="status-text" class="status-text">Inactive</div>
+      </div>
+
+      <!-- Dashboard / Statistics -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Protection Dashboard</div>
+          <button id="refresh-stats-btn" class="badge badge-success" style="cursor: pointer; border: none;">↻ Refresh</button>
+        </div>
+        <div id="stats-grid" class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">Total Scans</div>
+          </div>
+          <div class="stat-card stat-danger">
+            <div class="stat-value" id="stat-threats">0</div>
+            <div class="stat-label">Threats Blocked</div>
+          </div>
+          <div class="stat-card stat-success">
+            <div class="stat-value" id="stat-safe">0</div>
+            <div class="stat-label">Safe URLs</div>
+          </div>
+          <div class="stat-card stat-warning">
+            <div class="stat-value" id="stat-today">0</div>
+            <div class="stat-label">Today's Threats</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <button id="view-history-btn" class="btn-secondary" style="flex: 1;">View History</button>
+          <button id="export-report-btn" class="btn-secondary" style="flex: 1;">📄 Export Report</button>
+        </div>
+      </div>
+
+      <!-- Demo Mode Controls -->
+      <div class="section" style="background: rgba(255, 159, 10, 0.1); border: 1px solid rgba(255, 159, 10, 0.3); border-radius: 16px; margin: 20px;">
+        <div class="section-header">
+          <div class="section-title">🎬 Demo Mode</div>
+          <div class="badge badge-warning">For Presentations</div>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+          Generate realistic test scans for demos and presentations
+        </p>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <button id="enable-demo-btn" class="btn-primary" style="flex: 1;">✨ Enable Demo Mode</button>
+          <button id="disable-demo-btn" class="btn-danger" style="flex: 1;" disabled>Stop Demo</button>
+        </div>
+        <button id="auto-scan-demo-btn" class="btn-secondary" style="width: 100%;" disabled>🎯 Start Auto-Scan (8s interval)</button>
       </div>
 
       <!-- Controls -->

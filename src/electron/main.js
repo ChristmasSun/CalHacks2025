@@ -17,6 +17,8 @@ const { ClipboardMonitor } = require('../core/clipboard-monitor');
 const { ScreenOCRMonitor } = require('../core/screen-ocr-monitor');
 const { URLFilter } = require('../core/url-filter');
 const { scanQueue } = require('../core/scan-queue');
+const { ScanHistory } = require('../core/scan-history');
+const { demoMode } = require('../core/demo-mode');
 const { queryFetchAgent } = require('../infra/fetchAgent');
 const { transcribeAudio } = require('../infra/deepgram');
 const { emailVerifier } = require('../infra/email-verifier');
@@ -51,6 +53,7 @@ let gmailOAuthClient = null;
 let clipboardMonitor;
 let screenOCRMonitor;
 let activeWindowMonitorInterval;
+let scanHistory;
 const urlFilter = new URLFilter();
 const scanCache = new LRUCache({
   max: 500, // Cache up to 500 scanned URLs
@@ -610,8 +613,15 @@ async function orchestrateAnalysis({ url, audioFile, autoDetected = false } = {}
   const scanResult = {
     risk: assessment.risk_score || 0,
     reason: assessment.summary || 'Analysis complete',
-    url: url || audioFile
+    url: url || audioFile,
+    source: autoDetected?.source || 'manual',
+    blocked: assessment.risk_score >= 70
   };
+
+  // Add to scan history
+  if (scanHistory) {
+    await scanHistory.addScan(scanResult);
+  }
 
   if (controlWindow && !controlWindow.isDestroyed()) {
     controlWindow.webContents.send('scan-result', scanResult);
@@ -807,6 +817,82 @@ ipcMain.handle('refresh-gmail', async () => {
   }
 });
 
+// Scan history & stats handlers
+ipcMain.handle('get-scan-history', async () => {
+  return scanHistory ? scanHistory.getAll() : [];
+});
+
+ipcMain.handle('get-scan-stats', async () => {
+  return scanHistory ? scanHistory.getStats() : {};
+});
+
+ipcMain.handle('get-timeline-data', async (_event, days) => {
+  return scanHistory ? scanHistory.getTimelineData(days || 7) : [];
+});
+
+ipcMain.handle('clear-history', async () => {
+  if (scanHistory) {
+    await scanHistory.clear();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('export-history', async () => {
+  return scanHistory ? scanHistory.exportJSON() : '{}';
+});
+
+// Demo mode handlers
+ipcMain.handle('enable-demo-mode', async () => {
+  demoMode.enable();
+
+  // Generate demo history
+  const demoHistory = demoMode.generateDemoHistory(50);
+  for (const entry of demoHistory) {
+    await scanHistory.addScan(entry);
+  }
+
+  return { success: true, message: 'Demo mode enabled with 50 sample scans' };
+});
+
+ipcMain.handle('disable-demo-mode', async () => {
+  demoMode.disable();
+  demoMode.stopAutoScan();
+  return { success: true };
+});
+
+ipcMain.handle('start-demo-auto-scan', async () => {
+  demoMode.startAutoScan(async (scan) => {
+    // Add to history
+    if (scanHistory) {
+      await scanHistory.addScan(scan);
+    }
+
+    // Send to UI
+    if (controlWindow && !controlWindow.isDestroyed()) {
+      controlWindow.webContents.send('scan-result', scan);
+    }
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.webContents.send('scan-result', scan);
+
+      // Show warning for high risk
+      if (scan.risk >= 70) {
+        overlayWindow.webContents.send('show-warning', {
+          risk: scan.risk,
+          reason: scan.reason,
+          timestamp: Date.now()
+        });
+      }
+    }
+  }, 8000); // Every 8 seconds
+
+  return { success: true };
+});
+
+ipcMain.handle('stop-demo-auto-scan', async () => {
+  demoMode.stopAutoScan();
+  return { success: true };
+});
+
 ipcMain.handle('analyze-text', async (_event, { text }) => {
   try {
     console.log('[ScamShield] Analyzing contact text:', text.substring(0, 100));
@@ -981,6 +1067,12 @@ app.whenReady().then(async () => {
   } else {
     console.warn('[ScamShield] Failed to register keyboard shortcut');
   }
+
+  // Initialize scan history
+  const historyPath = path.join(app.getPath('userData'), 'scan-history.json');
+  scanHistory = new ScanHistory(historyPath);
+  await scanHistory.load();
+  console.log('[ScamShield] Scan history loaded');
 
   // Initialize Gmail
   gmailTokenPath = path.join(app.getPath('userData'), 'gmail-tokens.json');
