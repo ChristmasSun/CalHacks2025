@@ -431,6 +431,24 @@
       <p id="dashboard-status" class="dashboard-status">No scans yet. Hit the tray menu to try a sample URL.</p>
       <div class="gmail-section">
         <div class="gmail-section-header">
+          <span>Verify Contact</span>
+        </div>
+        <p class="dashboard-copy" style="font-size: 0.76rem; margin: 0 0 8px;">
+          Paste a LinkedIn message, email, or text with name + email to verify the person is real.
+        </p>
+        <textarea
+          id="text-analysis-input"
+          placeholder="Paste text here (e.g., LinkedIn message, email signature)..."
+          style="width: 100%; min-height: 60px; padding: 8px 10px; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; font-size: 0.82rem; font-family: inherit; resize: vertical; background: rgba(255, 255, 255, 0.8);"
+        ></textarea>
+        <button id="analyze-text-button" class="primary-button" type="button" style="width: 100%; margin-top: 8px;">
+          Verify Contact
+        </button>
+        <div id="text-analysis-results" style="margin-top: 12px;"></div>
+      </div>
+
+      <div class="gmail-section">
+        <div class="gmail-section-header">
           <span>Suspicious Inbox Alerts</span>
           <div class="gmail-section-actions">
             <span id="gmail-refreshed" class="gmail-refreshed"></span>

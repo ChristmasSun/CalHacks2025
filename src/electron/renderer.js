@@ -438,3 +438,132 @@ if (window.scamShield?.onAnalysisComplete) {
 setDashboardStatus(STATUS_DEFAULT);
 renderGmailMessages([], null, 'Connect Gmail to start scanning inbox.');
 setGmailRefreshing(false);
+
+// ========================================
+// Text Analysis / Contact Verification
+// ========================================
+
+const textAnalysisInput = document.getElementById('text-analysis-input');
+const textAnalysisButton = document.getElementById('analyze-text-button');
+const textAnalysisResults = document.getElementById('text-analysis-results');
+
+let textAnalyzing = false;
+
+function renderTextAnalysisResults(result) {
+  if (!textAnalysisResults) {
+    return;
+  }
+
+  if (!result || !result.success) {
+    textAnalysisResults.innerHTML = '<p class="empty-state" style="color: #dc2626;">Analysis failed. Please try again.</p>';
+    return;
+  }
+
+  const { contact, verification } = result;
+
+  // Build results HTML
+  let html = '';
+
+  // Contact Info Section
+  html += '<div style="background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 12px; padding: 12px; margin-bottom: 12px;">';
+  html += '<h4 style="margin: 0 0 8px; font-size: 0.85rem; color: #0f172a;">Extracted Contact Info</h4>';
+
+  if (contact.name) {
+    html += `<p style="margin: 4px 0; font-size: 0.78rem; color: rgba(15, 23, 42, 0.68);"><strong>Name:</strong> ${contact.name}</p>`;
+  }
+  if (contact.email) {
+    html += `<p style="margin: 4px 0; font-size: 0.78rem; color: rgba(15, 23, 42, 0.68);"><strong>Email:</strong> ${contact.email}</p>`;
+  }
+  if (contact.company) {
+    html += `<p style="margin: 4px 0; font-size: 0.78rem; color: rgba(15, 23, 42, 0.68);"><strong>Company:</strong> ${contact.company}</p>`;
+  }
+  if (contact.title) {
+    html += `<p style="margin: 4px 0; font-size: 0.78rem; color: rgba(15, 23, 42, 0.68);"><strong>Title:</strong> ${contact.title}</p>`;
+  }
+  if (contact.phone) {
+    html += `<p style="margin: 4px 0; font-size: 0.78rem; color: rgba(15, 23, 42, 0.68);"><strong>Phone:</strong> ${contact.phone}</p>`;
+  }
+
+  html += '</div>';
+
+  // Verification Results Section
+  const riskLevel = verification.riskLevel || 'low';
+  const riskColor = riskLevel === 'high' ? '#dc2626' : riskLevel === 'medium' ? '#ea580c' : '#16a34a';
+  const riskLabel = riskLevel === 'high' ? 'HIGH RISK' : riskLevel === 'medium' ? 'MEDIUM RISK' : 'LOW RISK';
+  const verifiedIcon = verification.verified ? '✓' : '⚠️';
+
+  html += '<div style="background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 12px; padding: 12px;">';
+  html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
+  html += '<h4 style="margin: 0; font-size: 0.85rem; color: #0f172a;">Verification Results</h4>';
+  html += `<span style="font-size: 0.72rem; font-weight: 600; color: ${riskColor}; letter-spacing: 0.08em;">${riskLabel}</span>`;
+  html += '</div>';
+
+  // Status
+  html += `<p style="margin: 0 0 8px; font-size: 0.82rem; color: ${verification.verified ? '#16a34a' : '#ea580c'};">`;
+  html += `<strong>${verifiedIcon} ${verification.verified ? 'Verified' : 'Not Verified'}</strong>`;
+  html += `</p>`;
+
+  if (verification.confidence > 0) {
+    html += `<p style="margin: 4px 0; font-size: 0.78rem; color: rgba(15, 23, 42, 0.68);">Confidence: ${verification.confidence}%</p>`;
+  }
+
+  if (verification.riskScore > 0) {
+    html += `<p style="margin: 4px 0; font-size: 0.78rem; color: rgba(15, 23, 42, 0.68);">Risk Score: ${verification.riskScore}/100</p>`;
+  }
+
+  // Matches
+  if (verification.matches && verification.matches.length > 0) {
+    html += '<div style="margin-top: 10px;">';
+    html += '<p style="margin: 0 0 6px; font-size: 0.76rem; font-weight: 600; color: #16a34a;">✓ Positive Indicators:</p>';
+    verification.matches.forEach(match => {
+      html += `<p style="margin: 2px 0; font-size: 0.74rem; color: rgba(15, 23, 42, 0.68);">• ${match}</p>`;
+    });
+    html += '</div>';
+  }
+
+  // Warnings
+  if (verification.warnings && verification.warnings.length > 0) {
+    html += '<div style="margin-top: 10px;">';
+    html += '<p style="margin: 0 0 6px; font-size: 0.76rem; font-weight: 600; color: #dc2626;">⚠️ Warnings:</p>';
+    verification.warnings.forEach(warning => {
+      html += `<p style="margin: 2px 0; font-size: 0.74rem; color: rgba(15, 23, 42, 0.68);">• ${warning}</p>`;
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
+
+  textAnalysisResults.innerHTML = html;
+}
+
+async function handleTextAnalysis() {
+  if (!textAnalysisInput || !window.scamShield?.analyzeText) {
+    return;
+  }
+
+  const text = textAnalysisInput.value.trim();
+
+  if (!text) {
+    textAnalysisResults.innerHTML = '<p class="empty-state" style="color: #ea580c;">Please paste some text to analyze.</p>';
+    return;
+  }
+
+  textAnalyzing = true;
+  textAnalysisButton.textContent = 'Analyzing...';
+  textAnalysisButton.setAttribute('disabled', 'true');
+  textAnalysisResults.innerHTML = '<p class="empty-state">Analyzing contact information...</p>';
+
+  try {
+    const result = await window.scamShield.analyzeText(text);
+    renderTextAnalysisResults(result);
+  } catch (error) {
+    console.error('[Renderer] Text analysis failed:', error);
+    textAnalysisResults.innerHTML = `<p class="empty-state" style="color: #dc2626;">Error: ${error.message}</p>`;
+  } finally {
+    textAnalyzing = false;
+    textAnalysisButton.textContent = 'Verify Contact';
+    textAnalysisButton.removeAttribute('disabled');
+  }
+}
+
+textAnalysisButton?.addEventListener('click', handleTextAnalysis);

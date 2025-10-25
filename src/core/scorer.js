@@ -143,6 +143,38 @@ function scoreRisk(enriched) {
     explanations.push(`Detected ${count} suspicious element(s) (login forms, credential inputs).`);
   }
 
+  // ========================================
+  // Bright Data Threat Intelligence
+  // ========================================
+  const brightDataIndicators = enriched.brightData?.indicators;
+  if (brightDataIndicators && totalScore < 85) {
+    // Apply Bright Data's risk score with moderate weight (URLScan.io is still primary)
+    const bdScore = brightDataIndicators.score || 0;
+
+    if (bdScore > 0) {
+      // Add 40% of Bright Data's score (max 40 points if BD score is 100)
+      const weightedBDScore = Math.round(bdScore * 0.4);
+      totalScore += weightedBDScore;
+
+      // Add specific explanations for detected indicators
+      if (brightDataIndicators.hasPasswordField || brightDataIndicators.hasCreditCardForm) {
+        explanations.push('⚠️ Bright Data detected credential/payment harvesting forms.');
+      }
+      if (brightDataIndicators.misleadingTitle) {
+        explanations.push('Bright Data flagged potential brand impersonation in page title.');
+      }
+      if (brightDataIndicators.urgencyLanguage) {
+        explanations.push('Bright Data detected urgency/pressure language (common in scams).');
+      }
+      if (brightDataIndicators.suspiciousScripts) {
+        explanations.push('Bright Data found obfuscated/suspicious JavaScript code.');
+      }
+      if (bdScore > 20 && !explanations.some(e => e.includes('Bright Data'))) {
+        explanations.push(`Bright Data threat analysis: ${bdScore}/100 risk score.`);
+      }
+    }
+  }
+
   // Audio transcript analysis (for voice scams)
   const transcriptSignal = scoreFromTranscript(enriched.transcript?.transcript);
   if (transcriptSignal.note) {

@@ -46,5 +46,6 @@ contextBridge.exposeInMainWorld('scamShield', {
   },
   dismissAlert: () => ipcRenderer.send('hide-alert'),
   hideDashboard: () => ipcRenderer.invoke('hide-dashboard'),
-  refreshGmail: () => ipcRenderer.invoke('refresh-gmail')
+  refreshGmail: () => ipcRenderer.invoke('refresh-gmail'),
+  analyzeText: (text) => ipcRenderer.invoke('analyze-text', { text })
 });

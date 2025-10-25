@@ -40,5 +40,29 @@
     "fingerprint": "cd1f72ce9903fa0259a2d699283219993e07c63b327696ce1e7431b14acf4c8c",
     "timestamp": 1761381013625,
     "scanDate": "2025-10-25T08:30:13.625Z"
+  },
+  {
+    "url": "https://brightdata.com/cp/setting/users",
+    "fingerprint": "f355070a4065c79029dcddd1fb5ac3736310b3523968e2c19f9004be9b2f19f4",
+    "timestamp": 1761382082543,
+    "scanDate": "2025-10-25T08:48:02.543Z"
+  },
+  {
+    "url": "https://docs.claude.com/en/docs/about-claude/models/overview",
+    "fingerprint": "4f6747b2d91514bc768b92934644e49e781f9376edb7929159cb10d8d479eb57",
+    "timestamp": 1761382409320,
+    "scanDate": "2025-10-25T08:53:29.320Z"
+  },
+  {
+    "url": "https://files.slack.com/files-pri/T09JP6D8PU0-F09NKA8NG8J/20251024_162727.jpg",
+    "fingerprint": "965d590a1ed927f00688272e6bfca40d6da1017c9a3f477e4c7cbdbfd7ba6ce2",
+    "timestamp": 1761382518042,
+    "scanDate": "2025-10-25T08:55:18.042Z"
+  },
+  {
+    "url": "https://maps.app.goo.gl/Es7wbok8ujKDuhU6A?g_st=ipc&_imcp=1",
+    "fingerprint": "e8318f290d43b5a01947529434cc18cc554ff2b171a6411a209e5991df9e72c5",
+    "timestamp": 1761383263445,
+    "scanDate": "2025-10-25T09:07:43.445Z"
   }
 ]

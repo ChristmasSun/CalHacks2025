@@ -1,6 +1,8 @@
 // Enrichment layer that combines URLScan.io data with additional metadata
 // Domain age and registrar info now comes from URLScan.io instead of mock data
 
+const { brightDataClient } = require('../infra/brightdata');
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function enrichWithScrapedMetadata(analysis) {
@@ -34,8 +36,35 @@ async function enrichWithScrapedMetadata(analysis) {
   const registrar = domainMeta.registrar || null;
   const registrantCountry = domainMeta.registrantCountry || null;
 
-  // Mock keyword matching (could be enhanced with real page text analysis)
-  const riskKeywords = ['urgent payment', 'limited offer', 'IRS'];
+  // ========================================
+  // Bright Data Enhanced Threat Intelligence
+  // ========================================
+  let brightDataAnalysis = null;
+  let brightDataWhois = null;
+
+  if (url && brightDataClient.enabled) {
+    try {
+      console.log('[Scraper] Enriching with Bright Data threat intelligence...');
+
+      // Run both analyses in parallel for speed
+      const [urlAnalysis, whoisData] = await Promise.all([
+        brightDataClient.analyzeUrl(url),
+        brightDataClient.getWhoisData(hostname)
+      ]);
+
+      brightDataAnalysis = urlAnalysis.success ? urlAnalysis.indicators : null;
+      brightDataWhois = whoisData.success ? whoisData.whois : null;
+
+      if (brightDataAnalysis) {
+        console.log(`[Scraper] Bright Data detected ${brightDataAnalysis.score} risk points from page analysis`);
+      }
+      if (brightDataWhois) {
+        console.log('[Scraper] Bright Data WHOIS data retrieved successfully');
+      }
+    } catch (error) {
+      console.warn('[Scraper] Bright Data enrichment failed:', error.message);
+    }
+  }
 
   return {
     ...analysis,
@@ -48,10 +77,14 @@ async function enrichWithScrapedMetadata(analysis) {
         registrar,     // REAL data from URLScan.io (or null)
         registrantCountry, // REAL data from URLScan.io (or null)
         contactEmails: [],
-        source: domainAgeDays !== null ? 'urlscan.io' : 'unavailable'
+        source: domainAgeDays !== null ? 'urlscan.io' : 'unavailable',
+        // Additional WHOIS data from Bright Data (if available)
+        brightDataWhois
       },
       redirects: analysis.sandboxMetadata?.redirects ?? [],
-      keywordMatches: riskKeywords.filter((keyword) => keyword && Math.random() > 0.4)
+      // Enhanced threat indicators from Bright Data
+      indicators: brightDataAnalysis,
+      enabled: brightDataClient.enabled
     }
   };
 }

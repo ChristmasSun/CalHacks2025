@@ -15,6 +15,8 @@ const { URLFilter } = require('../core/url-filter');
 const { scanQueue } = require('../core/scan-queue');
 const { queryFetchAgent } = require('../infra/fetchAgent');
 const { transcribeAudio } = require('../infra/deepgram');
+const { emailVerifier } = require('../infra/email-verifier');
+const { personVerifier } = require('../infra/person-verifier');
 const activeWin = require('active-win');
 
 process.on('unhandledRejection', (reason) => {
@@ -135,12 +137,36 @@ function parseEmailAddress(raw = '') {
   return (match ? match[1] : raw).trim().toLowerCase();
 }
 
-function evaluateMessageRisk({ subject, snippet, fromAddress }) {
+async function evaluateMessageRisk({ subject, snippet, fromAddress }) {
   const reasons = [];
   const subjectLower = (subject || '').toLowerCase();
   const snippetLower = (snippet || '').toLowerCase();
   const email = parseEmailAddress(fromAddress || '');
 
+  // ========================================
+  // ENHANCED: Email Authenticity Verification
+  // ========================================
+  try {
+    const verification = await emailVerifier.verifyEmail({
+      from: fromAddress,
+      subject: subject || '',
+      body: snippet || ''
+    });
+
+    // Add email verification warnings (these are HIGH priority)
+    if (!verification.legitimate) {
+      verification.warnings.forEach(warning => reasons.push(warning));
+    }
+
+    // Log verification results
+    console.log(`[Gmail] Email verification for ${fromAddress}: ${verification.riskLevel} risk (${verification.riskScore}/100)`);
+  } catch (error) {
+    console.warn('[Gmail] Email verification failed:', error.message);
+  }
+
+  // ========================================
+  // Legacy keyword and pattern matching
+  // ========================================
   GMAIL_SUSPICIOUS_KEYWORDS.forEach((keyword) => {
     if (subjectLower.includes(keyword) || snippetLower.includes(keyword)) {
       reasons.push(`Keyword: ${keyword}`);
@@ -214,7 +240,7 @@ async function refreshGmailData(oauthClient) {
         const dateValue = extractHeader(headers, 'Date') || null;
         const snippet = detail.data.snippet || '';
 
-        const reasons = evaluateMessageRisk({
+        const reasons = await evaluateMessageRisk({
           subject,
           snippet,
           fromAddress: fromValue
@@ -707,6 +733,19 @@ app.whenReady().then(async () => {
   createWindow();
   createTray();
 
+  // Register global keyboard shortcut (Cmd/Ctrl + Shift + S)
+  const { globalShortcut } = require('electron');
+  const shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+S', () => {
+    console.log('[ScamShield] Global shortcut triggered');
+    displayDashboard();
+  });
+
+  if (shortcutRegistered) {
+    console.log('[ScamShield] Keyboard shortcut registered: Cmd/Ctrl+Shift+S');
+  } else {
+    console.warn('[ScamShield] Failed to register keyboard shortcut');
+  }
+
   gmailTokenPath = path.join(app.getPath('userData'), 'gmail-tokens.json');
   const restored = await restoreGmailSession();
   if (restored) {
@@ -907,4 +946,22 @@ ipcMain.handle('hide-dashboard', async () => {
 ipcMain.handle('refresh-gmail', async () => {
   const payload = await refreshGmailData();
   return payload;
+});
+
+ipcMain.handle('analyze-text', async (_event, { text }) => {
+  console.log('[ScamShield] Analyzing pasted text...');
+
+  try {
+    const result = await personVerifier.analyzeText(text);
+    return {
+      success: true,
+      ...result
+    };
+  } catch (error) {
+    console.error('[ScamShield] Text analysis failed:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 });
