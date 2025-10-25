@@ -7,7 +7,12 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --dir"
+    "build": "electron-builder --dir",
+    "demo:prep": "node prepare-demo.js",
+    "demo:mode": "echo 'DEMO_MODE=true' >> .env && echo '✅ Demo mode enabled! Start app with: npm start'",
+    "demo:real": "echo 'DEMO_MODE=false' >> .env && echo '✅ Real mode enabled! Start app with: npm start'",
+    "test:linkedin": "node test-linkedin-verification.js",
+    "test:urlscan": "node test-urlscan.js"
   },
   "dependencies": {
     "active-win": "^8.2.1",
