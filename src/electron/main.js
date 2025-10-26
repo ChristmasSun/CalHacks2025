@@ -337,6 +337,7 @@ async function evaluateMessageRisk({ subject, snippet, fromAddress }) {
 
   // LinkedIn Identity Verification (NEW!)
   // Cross-check if sender's name matches their email on LinkedIn
+  // NOTE: Only flag if we find a MISMATCH. If person not found, assume it's fine.
   if (senderName && email && personVerifier.enabled) {
     try {
       console.log(`[Gmail] LinkedIn verification for ${senderName} <${email}>`);
@@ -349,27 +350,53 @@ async function evaluateMessageRisk({ subject, snippet, fromAddress }) {
       });
 
       if (linkedInCheck && !linkedInCheck.verified) {
-        // Person not found on LinkedIn OR email doesn't match
-        linkedInCheck.warnings.forEach(warning => reasons.push(`LinkedIn: ${warning}`));
-        console.log(`[Gmail] ⚠️ LinkedIn verification failed: ${linkedInCheck.warnings.join(', ')}`);
+        // Only flag if we found the person but email DOESN'T match
+        // If person not found on LinkedIn, that's fine (not everyone has LinkedIn)
+        const isEmailMismatch = linkedInCheck.warnings.some(w =>
+          w.toLowerCase().includes('email') && w.toLowerCase().includes('match')
+        );
+
+        if (isEmailMismatch) {
+          reasons.push(`LinkedIn: Email doesn't match profile`);
+          console.log(`[Gmail] ⚠️ LinkedIn email mismatch for ${senderName}`);
+        } else {
+          // Person not found on LinkedIn - that's OK, skip warning
+          console.log(`[Gmail] ℹ️ ${senderName} not found on LinkedIn (this is fine)`);
+        }
       } else if (linkedInCheck && linkedInCheck.verified) {
         console.log(`[Gmail] ✅ LinkedIn verification passed for ${senderName}`);
       }
     } catch (error) {
-      console.warn('[Gmail] LinkedIn verification failed:', error.message);
+      console.warn('[Gmail] LinkedIn verification error (skipping):', error.message);
+      // Don't add to reasons - just log and continue
     }
   }
 
-  // Legacy keyword and pattern matching
+  // Check if this is from a trusted company (Google, GitHub, etc.)
+  const trustedDomains = ['google.com', 'github.com', 'microsoft.com', 'apple.com', 'slack.com'];
+  const senderDomain = email ? email.split('@')[1]?.toLowerCase() : '';
+  const isTrustedSender = trustedDomains.some(domain => senderDomain === domain || senderDomain.endsWith('.' + domain));
+
+  // Legacy keyword and pattern matching (with context-aware messages)
   GMAIL_SUSPICIOUS_KEYWORDS.forEach((keyword) => {
     if (subjectLower.includes(keyword) || snippetLower.includes(keyword)) {
-      reasons.push(`Keyword: ${keyword}`);
+      // Don't flag "verify your account" from actual Google/GitHub
+      if (isTrustedSender && (keyword === 'verify your account' || keyword === 'confirm your identity' || keyword === 'reset your password')) {
+        reasons.push(`⚠️ Security notification (verify you authorized this)`);
+      } else {
+        reasons.push(`Keyword: ${keyword}`);
+      }
     }
   });
 
   GMAIL_URGENT_PHRASES.forEach((phrase) => {
     if (subjectLower.includes(phrase) || snippetLower.includes(phrase)) {
-      reasons.push(`Urgency: ${phrase}`);
+      // Don't flag "security alert" from actual Google/GitHub
+      if (isTrustedSender && phrase === 'security alert') {
+        reasons.push(`🔔 Security notification (verify you authorized this)`);
+      } else {
+        reasons.push(`Urgency: ${phrase}`);
+      }
     }
   });
 
@@ -383,7 +410,10 @@ async function evaluateMessageRisk({ subject, snippet, fromAddress }) {
   }
 
   if (!reasons.length && snippetLower.includes('http')) {
-    reasons.push('Contains external link');
+    // Trusted senders with links are fine
+    if (!isTrustedSender) {
+      reasons.push('Contains external link');
+    }
   }
 
   return Array.from(new Set(reasons));
@@ -423,10 +453,10 @@ async function refreshGmailData(oauthClient) {
     });
 
     const messageRefs = listResponse.data.messages || [];
-    const suspicious = [];
+    const allMessages = []; // Changed: Show ALL emails, not just suspicious ones
 
     for (const ref of messageRefs) {
-      if (suspicious.length >= 5) {
+      if (allMessages.length >= 10) { // Show up to 10 emails
         break;
       }
       try {
@@ -468,24 +498,24 @@ async function refreshGmailData(oauthClient) {
           }
         }
 
-        if (reasons.length) {
-          const parsedDate = dateValue ? new Date(dateValue) : null;
-          suspicious.push({
-            id: ref.id,
-            subject,
-            from: fromValue,
-            snippet,
-            date: dateValue,
-            displayDate: parsedDate ? parsedDate.toLocaleString() : 'Unknown',
-            reasons
-          });
-        }
+        // NEW: Add ALL emails to the list (not just suspicious ones)
+        const parsedDate = dateValue ? new Date(dateValue) : null;
+        allMessages.push({
+          id: ref.id,
+          subject,
+          from: fromValue,
+          snippet,
+          date: dateValue,
+          displayDate: parsedDate ? parsedDate.toLocaleString() : 'Unknown',
+          reasons: reasons.length > 0 ? reasons : ['✅ Everything looks fine!'], // Show "safe" message if no threats
+          isSafe: reasons.length === 0 // Flag for styling
+        });
       } catch (error) {
         console.warn('[ScamShield] Failed to inspect Gmail message:', error.message);
       }
     }
 
-    gmailSuspiciousMessages = suspicious;
+    gmailSuspiciousMessages = allMessages; // Now contains ALL emails
     gmailLastRefreshedAt = new Date().toISOString();
 
     const payload = buildGmailStatusPayload();

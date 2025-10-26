@@ -297,6 +297,7 @@ if (gmailBtn) {
 function updateGmailUI(status) {
   const gmailEmail = document.getElementById('gmail-email');
   const gmailBadge = document.getElementById('gmail-badge');
+  const gmailMessagesContainer = document.getElementById('gmail-messages');
 
   if (status.connected && status.email) {
     if (gmailTitle) gmailTitle.textContent = `Connected: ${status.email}`;
@@ -315,6 +316,49 @@ function updateGmailUI(status) {
       gmailBadge.style.display = 'inline-block';
     }
 
+    // Display scanned messages (ALL emails, not just suspicious)
+    if (gmailMessagesContainer) {
+      if (!status.messages || status.messages.length === 0) {
+        gmailMessagesContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 12px; margin-top: 12px;">No recent emails to display</div>';
+      } else {
+        let messagesHTML = '';
+        status.messages.forEach(msg => {
+          // IMPORTANT: Only show messages that have email-like structure
+          // Skip if subject looks like a URL (clipboard scans getting mixed in)
+          if (!msg.subject || !msg.from || msg.subject.startsWith('http') || msg.subject.includes('.com')) {
+            console.warn('[Gmail UI] Skipping non-email message:', msg.subject);
+            return; // Skip this message
+          }
+
+          const isSafe = msg.isSafe || false;
+          const bgColor = isSafe ? 'rgba(52, 199, 89, 0.1)' : 'rgba(255, 69, 58, 0.15)';
+          const borderColor = isSafe ? 'rgba(52, 199, 89, 0.3)' : 'rgba(255, 69, 58, 0.4)';
+          const icon = isSafe ? '✅' : '⚠️';
+
+          messagesHTML += `
+            <div style="background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 10px; margin-top: 8px;">
+              <div style="display: flex; align-items: flex-start; gap: 8px;">
+                <span style="font-size: 16px;">${icon}</span>
+                <div style="flex: 1;">
+                  <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${msg.subject}</div>
+                  <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">From: ${msg.from}</div>
+                  <div style="font-size: 11px; color: var(--text-secondary);">${msg.reasons.join(', ')}</div>
+                  <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">${msg.displayDate}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        if (messagesHTML === '') {
+          // All messages were filtered out
+          gmailMessagesContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 12px; margin-top: 12px;">No valid emails to display</div>';
+        } else {
+          gmailMessagesContainer.innerHTML = messagesHTML;
+        }
+      }
+    }
+
     settings.gmailScan = true;
     saveSettings();
     updateSettingToggle('toggle-gmail-scan', true);
@@ -331,6 +375,11 @@ function updateGmailUI(status) {
       gmailBadge.textContent = 'Not Connected';
       gmailBadge.className = 'badge badge-warning';
       gmailBadge.style.display = 'inline-block';
+    }
+
+    // Clear messages
+    if (gmailMessagesContainer) {
+      gmailMessagesContainer.innerHTML = '';
     }
   }
 }
