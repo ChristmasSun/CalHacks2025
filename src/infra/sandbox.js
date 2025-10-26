@@ -8,8 +8,8 @@ const URLSCAN_API_KEY = process.env.URLSCAN_API_KEY;
 const URLSCAN_API_BASE = 'https://urlscan.io/api/v1';
 const URLSCAN_VISIBILITY = process.env.URLSCAN_VISIBILITY || 'public';
 
-// Retry configuration
-const MAX_POLL_ATTEMPTS = 30; // 30 attempts
+// Retry configuration (REDUCED to prevent freezing)
+const MAX_POLL_ATTEMPTS = 15; // 15 attempts (was 30) = 30 seconds max
 const POLL_INTERVAL_MS = 2000; // 2 seconds between polls
 const REQUEST_TIMEOUT_MS = 10000; // 10 second timeout per request
 
@@ -43,8 +43,15 @@ async function submitScan(url) {
     return response.data.uuid;
   } catch (error) {
     if (error.response) {
-      throw new Error(`URLScan submission failed: ${error.response.status} - ${error.response.data?.message || error.response.statusText}`);
+      const errorMsg = error.response.data?.message || error.response.statusText;
+      console.error(`[URLScan] Submission failed (${error.response.status}): ${errorMsg}`);
+
+      // For immediate failures (DNS errors, invalid URLs, etc.), throw immediately
+      // These don't need polling - they failed at submission
+      throw new Error(`URLScan submission failed: ${error.response.status} - ${errorMsg}`);
     }
+
+    console.error(`[URLScan] Submission error: ${error.message}`);
     throw new Error(`URLScan submission failed: ${error.message}`);
   }
 }

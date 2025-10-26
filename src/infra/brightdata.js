@@ -21,9 +21,9 @@ async function loadWhoisDomain() {
 }
 
 const BRIGHTDATA_API_BASE = 'https://api.brightdata.com/datasets/v3';
-const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+const REQUEST_TIMEOUT_MS = 15000; // 15 seconds (reduced from 30)
 const POLL_INTERVAL_MS = 2000; // Poll every 2 seconds
-const MAX_POLL_ATTEMPTS = 30; // Max 60 seconds of polling
+const MAX_POLL_ATTEMPTS = 10; // Max 20 seconds of polling (reduced from 30 attempts/60s)
 
 class BrightDataClient {
   constructor(options = {}) {
@@ -196,12 +196,35 @@ class BrightDataClient {
     try {
       console.log('[BrightData/WHOIS] Fetching WHOIS data for:', domain);
 
+      // Skip WHOIS for obviously suspicious/fake domains that will timeout
+      const suspiciousTLDs = ['.cust_login.', '.verify.', '.secure.', '.account.', '.login.'];
+      const hasSuspiciousTLD = suspiciousTLDs.some(tld => domain.includes(tld));
+
+      if (hasSuspiciousTLD) {
+        console.log('[BrightData/WHOIS] Skipping WHOIS for suspicious domain pattern');
+        return {
+          success: false,
+          domain,
+          error: 'Suspicious domain pattern - WHOIS skipped to prevent timeout',
+          warning: 'Domain uses suspicious naming pattern (likely phishing)',
+          timestamp: new Date().toISOString()
+        };
+      }
+
       // Lazy-load whoiser module
       const whoisDomainFn = await loadWhoisDomain();
-      const whoisData = await whoisDomainFn(domain, {
-        timeout: 10000,
+
+      // Add hard timeout wrapper (whoiser's internal timeout doesn't always work for DNS failures)
+      const whoisPromise = whoisDomainFn(domain, {
+        timeout: 8000,
         follow: 2 // Follow up to 2 redirects
       });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('WHOIS lookup timeout after 10 seconds')), 10000)
+      );
+
+      const whoisData = await Promise.race([whoisPromise, timeoutPromise]);
 
       // Parse the WHOIS data
       const domainInfo = whoisData[domain] || {};
