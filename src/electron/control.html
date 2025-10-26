@@ -12,9 +12,9 @@
       }
 
       :root {
-        --bg-main: rgba(20, 20, 22, 0.7);
-        --bg-card: rgba(40, 40, 44, 0.6);
-        --bg-hover: rgba(60, 60, 64, 0.6);
+        --bg-main: rgba(20, 20, 22, 0.4);
+        --bg-card: rgba(40, 40, 44, 0.3);
+        --bg-hover: rgba(60, 60, 64, 0.35);
         --accent: #0a84ff;
         --accent-hover: #409cff;
         --text-primary: #ffffff;
@@ -496,9 +496,10 @@
       }
 
       .warnings-list li::before {
-        content: "⚠";
+        content: "!";
         position: absolute;
         left: 0;
+        color: var(--danger);
       }
 
       /* Scan Result Cards */
@@ -871,6 +872,112 @@
       body.compact textarea {
         min-height: 60px;
       }
+
+      /* Settings */
+      .settings-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px;
+        background: rgba(40, 40, 44, 0.4);
+        border-radius: 14px;
+        margin-bottom: 10px;
+        border: 1px solid var(--border);
+        backdrop-filter: blur(80px) saturate(180%);
+        -webkit-backdrop-filter: blur(80px) saturate(180%);
+      }
+
+      .settings-item-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+      }
+
+      .settings-item-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.4;
+      }
+
+      /* Toggle Switch */
+      .toggle-switch {
+        position: relative;
+        width: 48px;
+        height: 28px;
+        background: rgba(120, 120, 128, 0.32);
+        border-radius: 28px;
+        cursor: pointer;
+        transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 2px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .toggle-switch.active {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .toggle-slider {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .toggle-switch.active .toggle-slider {
+        transform: translateX(20px);
+      }
+
+      /* Tab Navigation */
+      .tab-nav {
+        display: flex;
+        gap: 0;
+        padding: 0 20px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(30, 30, 34, 0.5);
+        backdrop-filter: blur(80px) saturate(180%);
+        -webkit-backdrop-filter: blur(80px) saturate(180%);
+      }
+
+      .tab-item {
+        padding: 14px 20px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-muted);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+
+      .tab-item:hover {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .tab-item.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+
+      .tab-content {
+        display: none;
+        animation: fadeIn 0.3s ease;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
     </style>
   </head>
   <body>
@@ -884,17 +991,26 @@
         <div class="shortcut-hint">⌘⇧C</div>
       </div>
 
-      <!-- Status -->
-      <div class="status-bar">
-        <div id="status-dot" class="status-dot"></div>
-        <div id="status-text" class="status-text">Inactive</div>
+      <!-- Tab Navigation -->
+      <div class="tab-nav">
+        <div class="tab-item active" data-tab="overview">Overview</div>
+        <div class="tab-item" data-tab="history">History</div>
+        <div class="tab-item" data-tab="settings">Settings</div>
       </div>
+
+      <!-- Overview Tab -->
+      <div class="tab-content active" id="tab-overview">
+        <!-- Status -->
+        <div class="status-bar">
+          <div id="status-dot" class="status-dot"></div>
+          <div id="status-text" class="status-text">Inactive</div>
+        </div>
 
       <!-- Dashboard / Statistics -->
       <div class="section">
         <div class="section-header">
           <div class="section-title">Protection Dashboard</div>
-          <button id="refresh-stats-btn" class="badge badge-success" style="cursor: pointer; border: none;">↻ Refresh</button>
+          <button id="refresh-stats-btn" class="badge badge-success" style="cursor: pointer; border: none; margin-left: 8px;">↻ Refresh</button>
         </div>
         <div id="stats-grid" class="stats-grid">
           <div class="stat-card">
@@ -916,24 +1032,8 @@
         </div>
         <div style="display: flex; gap: 8px; margin-top: 12px;">
           <button id="view-history-btn" class="btn-secondary" style="flex: 1;">View History</button>
-          <button id="export-report-btn" class="btn-secondary" style="flex: 1;">📄 Export Report</button>
+          <button id="export-report-btn" class="btn-secondary" style="flex: 1;">Export Report</button>
         </div>
-      </div>
-
-      <!-- Demo Mode Controls -->
-      <div class="section" style="background: rgba(255, 159, 10, 0.1); border: 1px solid rgba(255, 159, 10, 0.3); border-radius: 16px; margin: 20px;">
-        <div class="section-header">
-          <div class="section-title">🎬 Demo Mode</div>
-          <div class="badge badge-warning">For Presentations</div>
-        </div>
-        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-          Generate realistic test scans for demos and presentations
-        </p>
-        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-          <button id="enable-demo-btn" class="btn-primary" style="flex: 1;">✨ Enable Demo Mode</button>
-          <button id="disable-demo-btn" class="btn-danger" style="flex: 1;" disabled>Stop Demo</button>
-        </div>
-        <button id="auto-scan-demo-btn" class="btn-secondary" style="width: 100%;" disabled>🎯 Start Auto-Scan (8s interval)</button>
       </div>
 
       <!-- Controls -->
@@ -956,7 +1056,10 @@
       <!-- Gmail -->
       <div class="section">
         <div class="section-header">
-          <div class="section-title">Gmail Monitor</div>
+          <div class="section-title">
+            <img src="https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico" alt="Gmail" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 6px;" />
+            Gmail Monitor
+          </div>
           <div id="gmail-badge" class="badge badge-warning" style="display: none;">Not Connected</div>
         </div>
         <button id="gmail-btn" class="btn-secondary" style="width: 100%;">Connect Gmail</button>
@@ -976,10 +1079,116 @@ Senior Engineer at Google"></textarea>
         <button id="verify-btn" class="btn-primary" style="width: 100%; margin-top: 12px;">Verify</button>
         <div id="verify-result" class="verify-result"></div>
       </div>
+      </div>
+      <!-- End Overview Tab -->
+
+      <!-- History Tab -->
+      <div class="tab-content" id="tab-history">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Scan History</div>
+            <button id="clear-history-btn" class="badge badge-danger" style="cursor: pointer; border: none; margin-left: 8px;">Clear All</button>
+          </div>
+          <div id="history-list" class="result-list">
+            <div class="result-empty">No scans yet</div>
+          </div>
+        </div>
+      </div>
+      <!-- End History Tab -->
+
+      <!-- Settings Tab -->
+      <div class="tab-content" id="tab-settings">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Protection Settings</div>
+          </div>
+
+          <!-- URL Scanning -->
+          <div class="settings-item">
+            <div>
+              <div class="settings-item-label">Automatic URL Scanning</div>
+              <div class="settings-item-desc">Scan URLs from clipboard automatically</div>
+            </div>
+            <div class="toggle-switch active" id="toggle-url-scan">
+              <div class="toggle-slider"></div>
+            </div>
+          </div>
+
+          <!-- Gmail Monitor -->
+          <div class="settings-item">
+            <div>
+              <div class="settings-item-label">
+                <img src="https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico" alt="Gmail" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 6px;" />
+                Gmail Scanning
+              </div>
+              <div class="settings-item-desc">Monitor Gmail inbox for phishing emails</div>
+            </div>
+            <div class="toggle-switch" id="toggle-gmail-scan">
+              <div class="toggle-slider"></div>
+            </div>
+          </div>
+
+          <!-- Screen OCR -->
+          <div class="settings-item">
+            <div>
+              <div class="settings-item-label">Screen OCR Monitoring</div>
+              <div class="settings-item-desc">Extract and scan URLs visible on screen using OCR</div>
+            </div>
+            <div class="toggle-switch" id="toggle-screen-ocr">
+              <div class="toggle-slider"></div>
+            </div>
+          </div>
+
+          <!-- Reka AI Vision Mode -->
+          <div class="section">
+            <div class="section-header">
+              <div class="section-title">Reka AI Vision Mode</div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 12px;">
+              <button id="reka-manual-btn" class="btn-secondary" style="flex: 1;">Manual Mode (Cmd+Shift+S)</button>
+              <button id="reka-auto-btn" class="btn-secondary" style="flex: 1;">Auto-Scan (10s)</button>
+            </div>
+          </div>
+
+          <!-- Sound Alerts -->
+          <div class="settings-item">
+            <div>
+              <div class="settings-item-label">Sound Alerts</div>
+              <div class="settings-item-desc">Play alert sound when threats are detected</div>
+            </div>
+            <div class="toggle-switch active" id="toggle-sound">
+              <div class="toggle-slider"></div>
+            </div>
+          </div>
+
+          <!-- Notifications -->
+          <div class="settings-item">
+            <div>
+              <div class="settings-item-label">System Notifications</div>
+              <div class="settings-item-desc">Show system notifications for scan results</div>
+            </div>
+            <div class="toggle-switch active" id="toggle-notifications">
+              <div class="toggle-slider"></div>
+            </div>
+          </div>
+
+          <!-- Educational Mode -->
+          <div class="settings-item">
+            <div>
+              <div class="settings-item-label">Educational Mode</div>
+              <div class="settings-item-desc">Show detailed explanations of detected threats</div>
+            </div>
+            <div class="toggle-switch active" id="toggle-educational">
+              <div class="toggle-slider"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- End Settings Tab -->
     </div>
 
     <!-- Compact Toggle -->
-    <div class="compact-toggle" id="compact-toggle" title="Toggle compact mode">⚡</div>
+    <div class="compact-toggle" id="compact-toggle" title="Toggle compact mode">+</div>
 
     <script src="./control.js"></script>
   </body>

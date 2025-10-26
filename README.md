@@ -1,222 +1,473 @@
-# CalHacks2025 Scam Detection Prototype
+# Detectify - AI-Powered Scam Detection
 
-Electron application that analyzes URLs for scams using **real VM-based analysis via URLScan.io**. Features a lightweight system tray UI that sends URLs for analysis through multiple detection layers before returning a risk score notification.
+Real-time scam detection platform that protects users across emails, URLs, and screen content using advanced AI analysis and threat intelligence.
 
 ## Features
 
-- **Real URLScan.io Integration** - URLs are analyzed in isolated VMs with malware/phishing detection
-- **Bright Data Threat Intelligence** - Enhanced scam detection with WHOIS data and phishing indicators (optional)
-- **Email Authenticity Verification** - Detects brand impersonation, typosquatting, and phishing emails automatically
-- **Contact Verification** - Paste LinkedIn messages/emails to verify if person is real and email matches public records
-- **Global Keyboard Shortcut** - Press Cmd/Ctrl+Shift+S anywhere to instantly open ScamShield
-- **Multi-Signal Risk Scoring** - Combines URL sandbox analysis, domain reputation, keyword detection
-- **Invisible Tray Agent** - Runs silently and only surfaces a Detectify-style alert overlay on risky findings
-- **Gmail Inbox Scanning** - OAuth flow to connect Gmail and flag suspicious messages with AI-powered verification
-- **Clipboard & Screen Awareness** - Auto-detects URLs copied to the clipboard and queues them for scanning
-- **Extensible Architecture** - Easy to add VirusTotal, PhishTank, and other threat intelligence sources
+### Core Protection
+- **Real URLScan.io Integration** - Analyzes URLs in isolated VMs with malware/phishing detection
+- **Reka AI Screen Monitoring** - Full-screen AI analysis to detect scams in any app (Instagram DMs, iMessage, WhatsApp, etc.)
+- **Gmail Integration** - OAuth-based email scanning with AI-powered verification
+- **Email Authenticity Verification** - Detects brand impersonation, typosquatting, and phishing
+- **Bright Data Threat Intelligence** - Enhanced scam detection with WHOIS and phishing indicators
+- **Clipboard Monitoring** - Auto-detects and analyzes copied URLs
+- **Screen OCR Monitoring** - Extracts and scans URLs visible on screen
+
+### User Experience
+- **Pristine White Dashboard** - Clean, modern UI with onboarding flow
+- **System Tray Integration** - Runs silently in background with quick access
+- **Global Keyboard Shortcuts**:
+  - `Cmd/Ctrl+Shift+C` - Toggle dashboard
+  - `Cmd/Ctrl+Shift+S` - Manual Reka AI screen scan
+- **Real-time Alerts** - Top-right dropdown notifications for threats
+- **Scan History & Analytics** - Track all scans with detailed stats and timeline
+- **Settings Panel** - Customize monitoring, notifications, and thresholds
 
 ## Quick Start
 
-### 1. Get URLScan.io API Key
+### 1. Install Dependencies
 
-1. Sign up at [https://urlscan.io/](https://urlscan.io/)
-2. Get your API key from [https://urlscan.io/user/profile/](https://urlscan.io/user/profile/)
+```bash
+npm install
+```
 
 ### 2. Configure Environment
 
 ```bash
 # Copy environment template
 cp .env.example .env
-
-# Edit .env and add your keys
-# URLSCAN_API_KEY=your_urlscan_api_key
-# BRIGHTDATA_API_TOKEN=your_brightdata_token   # optional for enhanced detection
-# GOOGLE_CLIENT_ID=your_google_oauth_client_id
-# GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
-# GOOGLE_REDIRECT_URI=http://127.0.0.1:42862/oauth2callback   # optional override
 ```
 
-### 3. Install & Run
+Edit `.env` and add your API keys:
+
+```env
+# Required
+URLSCAN_API_KEY=your_urlscan_api_key
+
+# Optional but recommended
+REKA_API_KEY=your_reka_api_key
+BRIGHTDATA_API_TOKEN=your_brightdata_token
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+```
+
+### 3. Get API Keys
+
+**URLScan.io (Required):**
+1. Sign up at [https://urlscan.io/](https://urlscan.io/)
+2. Get API key from [profile page](https://urlscan.io/user/profile/)
+
+**Reka AI (Optional - for screen monitoring):**
+1. Sign up at [https://platform.reka.ai](https://platform.reka.ai)
+2. Get API key from dashboard
+
+**Bright Data (Optional - for enhanced detection):**
+1. Sign up at [https://brightdata.com/](https://brightdata.com/)
+2. Get API token from dashboard
+
+**Google OAuth (Optional - for Gmail integration):**
+1. Create project in [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable Gmail API
+3. Create OAuth 2.0 Desktop App credentials
+4. Add credentials to `.env`
+
+### 4. Run the App
 
 ```bash
-npm install
 npm start
 ```
 
-`npm start` launches Electron with the system tray UI. Use the tray menu's sample actions to trigger analyses and preview the alert overlay.
+Press `Cmd/Ctrl+Shift+C` to show/hide the dashboard.
 
-**Quick Access:** Press **Cmd/Ctrl+Shift+S** from anywhere to instantly open the dashboard.
+## Architecture
 
-## 🎬 Demo Mode (For Presentations)
+### Project Structure
 
-**Preparing for a demo or video? Enable instant results!**
-
-```bash
-# Enable demo mode (instant mock results, no 2-3 min wait)
-npm run demo:mode
-
-# Prepare demo data and generate talking points
-npm run demo:prep
-
-# Start the app
-npm start
+```
+src/
+├── electron/
+│   ├── main.js          # Main process - orchestrates everything
+│   ├── preload.js       # IPC bridge (secure)
+│   ├── control.js       # Dashboard UI controller
+│   ├── control.html     # Main dashboard
+│   ├── overlay.js       # Alert overlay controller
+│   └── overlay.html     # Top-right alert notifications
+├── core/
+│   ├── clipboard-monitor.js    # Auto-detect URLs from clipboard
+│   ├── screen-ocr-monitor.js   # Extract URLs from screen via OCR
+│   ├── reka-screen-monitor.js  # AI-powered full-screen analysis
+│   ├── reka-vision.js          # Reka AI vision service
+│   ├── scan-queue.js           # Rate-limited URLScan.io queue
+│   ├── scan-history.js         # Persistent scan tracking
+│   ├── url-filter.js           # Whitelist/blacklist system
+│   ├── scraper.js              # Combines URLScan + Bright Data
+│   └── scorer.js               # Multi-signal risk scoring
+└── infra/
+    ├── sandbox.js              # URLScan.io VM analysis
+    ├── brightdata.js           # Bright Data client
+    ├── email-verifier.js       # Email authenticity checker
+    ├── person-verifier.js      # LinkedIn profile verification
+    ├── fetchAgent.js           # Fetch.ai agent (mock)
+    └── deepgram.js             # Audio transcription (mock)
 ```
 
-**📖 Full demo guide:** [QUICK-START-DEMO.md](./QUICK-START-DEMO.md)
-**🎯 Detailed instructions:** [DEMO-README.md](./DEMO-README.md)
+### Analysis Flow
 
-**Demo Mode Benefits:**
-- ✅ LinkedIn verification: 1-2 seconds (instead of 2-3 minutes)
-- ✅ Pre-generated realistic mock data
-- ✅ No API failures or timeouts
-- ✅ Perfect for time-constrained presentations
+1. **URL Detection**
+   - Clipboard monitor detects copied URLs
+   - Screen OCR extracts URLs from screen
+   - Manual input from dashboard
+   - Active window monitoring
 
-**Switch back to real mode:**
-```bash
-npm run demo:real
-npm start
+2. **Filtering & Queuing**
+   - URL filter checks whitelist/blacklist
+   - Scan cache deduplicates recent scans
+   - Queue manages URLScan.io rate limits
+
+3. **Analysis Layers**
+   - **URLScan.io**: VM sandbox analysis (2-3 min)
+   - **Bright Data**: WHOIS, phishing indicators, brand analysis
+   - **Risk Scorer**: Combines all signals into 0-100 score
+
+4. **Alert & Storage**
+   - High-risk URLs trigger overlay alerts
+   - All scans saved to history
+   - Stats updated in real-time
+
+### Reka AI Screen Monitoring
+
+The crown jewel feature - monitors your entire screen with AI vision:
+
+1. **Setup**: Enable in Settings > AI Screen Monitor
+2. **Modes**:
+   - **Manual Check**: Press `Cmd+Shift+S` to scan
+   - **Always Check**: Automatic scans every 30 seconds
+3. **Analysis**: Reka AI analyzes screenshot for:
+   - Phishing attempts
+   - Urgency tactics
+   - Emotional manipulation
+   - Suspicious requests (money, credentials, gift cards)
+   - Impersonation attempts
+4. **Alerts**: Risk score ≥ 40 triggers dropdown alert with:
+   - Risk percentage
+   - Threat summary
+   - Specific threats detected
+   - Recommendations
+
+### Gmail Integration
+
+1. Click **Connect Gmail** in dashboard
+2. Approve OAuth consent
+3. App scans recent emails (last 14 days)
+4. Email verification checks:
+   - Brand impersonation
+   - Typosquatting (paypa1.com, g00gle.com)
+   - Domain age and reputation
+   - Urgency/pressure language
+   - Suspicious keywords
+5. Toggle **Gmail Monitoring** in Settings to enable/disable
+
+### Clipboard Monitoring
+
+Automatically detects URLs copied to clipboard:
+
+1. Monitors clipboard every 500ms
+2. Smart filtering:
+   - Skips known-safe domains (google.com, github.com, etc.)
+   - Always scans suspicious patterns (login pages, shortened URLs)
+3. LRU cache (1-hour TTL) deduplicates scans
+4. Rate-limited queue respects URLScan.io limits
+
+## Features in Detail
+
+### Dashboard Tabs
+
+**Overview**
+- Real-time protection status
+- Quick stats (threats blocked, scans, safe URLs)
+- Gmail connection status
+
+**History**
+- Recent scans with timestamps
+- Risk scores and reasons
+- Filter by risk level
+- Export to CSV
+
+**Settings**
+- URL Scanning toggle
+- Gmail Monitoring toggle
+- AI Screen Monitor (Manual/Always)
+- Sound alerts
+- Desktop notifications
+
+### Risk Scoring
+
+Risk scores (0-100) combine multiple signals:
+
+**High Risk (70-100):**
+- URLScan.io flagged as malicious
+- Very young domains (< 7 days)
+- Multiple phishing indicators
+- Known malware/credential harvesting
+
+**Medium Risk (40-69):**
+- Moderate age domains (< 30 days)
+- Some suspicious patterns
+- Urgency language detected
+- Personal email for business
+
+**Low Risk (0-39):**
+- Established domains
+- No suspicious indicators
+- Clean URLScan.io results
+
+### Alert System
+
+**Overlay Alerts:**
+- Top-right corner dropdown
+- Shows risk percentage
+- Brief threat summary
+- Click "Learn More" for:
+  - Detection signals
+  - Specific threats found
+  - Recommended actions
+- Auto-dismiss after 30 seconds (high-risk stays longer)
+
+**Scan History:**
+- All scans logged to disk
+- Persistent across app restarts
+- Exportable to CSV
+- Clear history option in Settings
+
+### Whitelist/Blacklist
+
+Located in `url-whitelist-blacklist.json`:
+
+**Default Whitelist (60+ domains):**
+- google.com, github.com, microsoft.com
+- stanford.edu, berkeley.edu
+- netflix.com, spotify.com
+- etc.
+
+**Custom Rules:**
+```json
+{
+  "whitelist": ["mytrustedsite.com"],
+  "blacklist": ["knownscam.xyz"],
+  "suspiciousPatterns": ["login", "verify", "urgent"]
+}
 ```
 
----
+## Development
 
-### 4. Test Integrations
+### Testing Individual Components
 
 ```bash
 # Test URLScan.io integration
 node test-urlscan.js https://example.com
 
-# Test Bright Data integration (optional)
+# Test Bright Data WHOIS
 node test-brightdata.js
 
-# Test email verification (detects phishing emails)
+# Test email verification
 node test-email-verifier.js
+
+# Test LinkedIn verification
+node test-linkedin-verification.js
 ```
 
-**See [SETUP.md](SETUP.md) for detailed setup instructions and troubleshooting.**
-
-### 5. Enable Bright Data (optional but recommended)
-
-1. Sign up at [https://brightdata.com/cp/start](https://brightdata.com/cp/start)
-2. Get your API token from the Bright Data dashboard
-3. Add `BRIGHTDATA_API_TOKEN=your_token` to your `.env` file
-4. Test the integration: `node test-brightdata.js`
-
-**Bright Data provides:**
-- Real-time WHOIS data for domain age verification
-- Phishing indicator detection (login forms, credential harvesting)
-- Brand impersonation analysis
-- Obfuscated script detection
-- Urgency language detection (common in scams)
-
-**Email Verification Features (automatic with Gmail integration):**
-- Brand impersonation detection (e.g., "PayPal" sender but wrong domain)
-- Typosquatting detection (paypa1.com, g00gle.com, etc.)
-- Domain similarity analysis (90% accuracy in tests)
-- Sender/domain mismatch detection
-- Urgency and pressure language detection
-- Financial/personal info request warnings
-
-**Contact Verification (manual - paste text in dashboard):**
-- Extract name, email, phone, company from pasted text
-- Verify person exists on LinkedIn/professional networks (requires Bright Data)
-- Compare claimed email against known company domains
-- Flag personal emails used for business (gmail.com for "Microsoft CEO")
-- Detect suspicious TLDs (.xyz, .top, .loan, etc.)
-- Risk scoring with confidence levels
-
-### 6. Connect Gmail (optional but recommended)
-
-1. Create an OAuth 2.0 Client ID (Desktop app) in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-2. Add the credentials to `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
-3. Launch the app and click **Connect Gmail** in the dashboard – approve the consent screen
-4. Tokens are stored locally in your user data folder (`gmail-tokens.json`) so you stay signed in
-
-## Building
+### Building for Production
 
 ```bash
 npm run build
 ```
 
-The `build` script runs `electron-builder --dir`, producing packaged output under `dist/`.
+Output in `dist/` directory.
 
-## Project Structure
+### Debugging
 
-```
-src/
-  electron/
-    main.js       # Electron main process entry
-    preload.js    # Secure bridge between renderer and main
-    renderer.js   # Dashboard + overlay controller for detection alerts
-    index.html    # Detectify-style top-right alert template
-  infra/
-    fetchAgent.js    # Mock Fetch.ai agent call
-    sandbox.js       # ✅ REAL URLScan.io VM-based URL analysis
-    brightdata.js    # ✅ REAL Bright Data threat intelligence client
-    email-verifier.js # ✅ REAL Email authenticity verification
-    deepgram.js      # Mock Deepgram transcription helper
-    index.js         # Orchestrates analyzeInput()
-  core/
-    scraper.js    # Data enrichment (combines URLScan + Bright Data)
-    scorer.js     # Risk scoring across signals
-    clipboard-monitor.js # Watches clipboard for URLs to auto-scan
-    url-filter.js        # Whitelist/blacklist + heuristics for auto-scans
-    scan-queue.js        # Rate-limited orchestration for URLScan.io jobs
-  shared/
-    types.js      # Shared enums/builders for assessment payloads
-assets/
-  icon.png        # App + tray icon
+**Main Process:**
+```bash
+# Logs appear in terminal
+npm start
 ```
 
-## Analysis Flow
+**Renderer Process:**
+- Open DevTools: `Cmd+Option+I` (Mac) or `Ctrl+Shift+I` (Windows/Linux)
+- Console logs show UI events
 
-1. Renderer calls `window.scamShield.analyze({ url, audioFile })` with the available inputs.
-2. Preload bridges the call to the main process via IPC.
-3. Main process fans out to analysis layers:
-   - **URLScan.io** (REAL) - Submits URL to isolated VM sandbox, polls for results
-   - **Bright Data** (REAL, optional) - Analyzes page for phishing indicators, fetches WHOIS data
-   - Fetch.ai agent (mock) - Simulates agent-based investigation
-   - Deepgram (mock) - Audio transcription for voice scams
-4. Results are enriched via core scraper (combines URLScan + Bright Data signals).
-5. Risk scorer combines all signals into a 0-100 risk score with explanations.
-6. Main process returns assessment to the renderer and, on risky findings, flashes the overlay drop-down.
+**IPC Communication:**
+- Look for `[ScamShield]`, `[RekaScreen]`, `[Gmail]` prefixes in logs
 
-## Overlay UX
+## Configuration
 
-- Hidden by default so the app stays invisible on the desktop.
-- Medium/high risk events animate a white & blue Detectify-style dropdown in the top-right corner.
-- The tray menu exposes sample triggers to preview the animation while developing.
-- The dashboard now surfaces recent suspicious Gmail messages and manual refresh controls once connected.
+### Environment Variables
+
+```env
+# Required
+URLSCAN_API_KEY=your_api_key
+
+# Optional - Reka AI (screen monitoring)
+REKA_API_KEY=your_reka_key
+
+# Optional - Bright Data (enhanced detection)
+BRIGHTDATA_API_TOKEN=your_token
+
+# Optional - Gmail integration
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+GOOGLE_REDIRECT_URI=http://127.0.0.1:42862/oauth2callback
+
+# Optional - Deepgram (future)
+DEEPGRAM_API_KEY=your_key
+```
+
+### Settings Storage
+
+- **Renderer Settings**: `localStorage` in renderer process
+- **Scan History**: `~/Library/Application Support/calhacks2025/scan-history.json`
+- **Gmail Tokens**: `~/Library/Application Support/calhacks2025/gmail-tokens.json`
+- **URL History**: `./url-history.json`
+- **User Rules**: `./url-whitelist-blacklist.json`
+
+### Customization
+
+**Change Alert Threshold:**
+```javascript
+// In main.js
+rekaScreenMonitor = new RekaScreenMonitor({
+  alertThreshold: 50, // Default: 40
+  // ...
+});
+```
+
+**Change Scan Intervals:**
+- Manual mode: 999999999ms (essentially disabled)
+- Always mode: 30000ms (30 seconds)
+- Adjust via Settings UI
+
+## API Integrations
+
+### URLScan.io
+
+**What it provides:**
+- VM-based URL analysis
+- Screenshot capture
+- Network traffic analysis
+- Redirect chain tracking
+- Malware/phishing detection
+- Security verdicts from multiple engines
+
+**Rate limits:**
+- Free tier: 50 scans/day
+- Paid: Higher limits
+
+### Reka AI
+
+**What it provides:**
+- Multimodal vision AI
+- Screenshot analysis
+- Text recognition and understanding
+- Context-aware scam detection
+- Structured JSON responses
+
+**Models used:**
+- `reka-flash`: Fast vision-capable model
+
+### Bright Data
+
+**What it provides:**
+- Real-time WHOIS data
+- Domain age verification
+- Phishing indicator detection
+- Brand impersonation analysis
+- Urgency language detection
+- Obfuscated script detection
+
+### Google Gmail API
+
+**What it provides:**
+- OAuth 2.0 authentication
+- Read-only access to messages
+- Message metadata (subject, from, date)
+- Message snippets
+- Refresh tokens for persistent access
+
+## Troubleshooting
+
+**"Reka AI monitoring not available"**
+- Check `REKA_API_KEY` in `.env`
+- Restart the app after adding the key
+- Test connection: logs show "Reka AI connected successfully"
+
+**"URLScan.io timeout"**
+- Scans take 2-3 minutes normally
+- Check your API key is valid
+- Verify rate limits not exceeded
+
+**"Gmail connection failed"**
+- Ensure Gmail API is enabled in Google Cloud Console
+- Check OAuth credentials are correct
+- Verify redirect URI matches: `http://127.0.0.1:42862/oauth2callback`
+
+**Stats showing old data**
+- Demo mode was auto-enabled (now disabled)
+- Clear history: Settings > Clear All History
+- Delete scan history file manually if needed
+
+**Traffic light buttons covering content**
+- Fixed with proper padding in dashboard header
+- `padding-top: 48px` and `padding-left: 90px`
+
+## Security & Privacy
+
+- **No data collection**: Everything runs locally
+- **Encrypted storage**: Gmail tokens stored securely
+- **OAuth 2.0**: Standard Google authentication
+- **No screenshots stored**: Reka AI analysis happens in real-time
+- **Optional monitoring**: All features can be disabled
+- **Sandboxed analysis**: URLScan.io runs in isolated VMs
 
 ## What's Real vs Mock
 
-✅ **Real Integrations:**
-- URLScan.io VM sandbox analysis ([sandbox.js](src/infra/sandbox.js))
-- Bright Data threat intelligence ([brightdata.js](src/infra/brightdata.js)) - Optional, requires API token
-- Email authenticity verification ([email-verifier.js](src/infra/email-verifier.js)) - 90% accuracy on phishing detection
-- Risk scoring algorithm ([scorer.js](src/core/scorer.js))
-- Gmail OAuth connection (googleapis) with local token storage
-- Clipboard & active window monitoring ([clipboard-monitor.js](src/core/clipboard-monitor.js))
+**Real & Production-Ready:**
+- URLScan.io VM sandbox analysis
+- Reka AI vision screen monitoring
+- Bright Data threat intelligence
+- Gmail OAuth integration
+- Email authenticity verification
+- Risk scoring algorithm
+- Clipboard & screen monitoring
+- Scan history & analytics
+- Alert overlay system
 
-🔄 **Mock Integrations (ready to swap):**
-- Fetch.ai agent analysis ([fetchAgent.js](src/infra/fetchAgent.js))
-- Deepgram transcription ([deepgram.js](src/infra/deepgram.js))
+**Mock (Ready to Implement):**
+- Fetch.ai agent analysis
+- Deepgram audio transcription
 
-## Prompt Roles
+## Future Enhancements
 
-Share these snippets with teammates so everyone can drop into their lane quickly:
+- [ ] Browser extension
+- [ ] Mobile app (iOS/Android)
+- [ ] SMS/iMessage integration
+- [ ] Phone call screening
+- [ ] VirusTotal integration
+- [ ] PhishTank integration
+- [ ] Machine learning model training
+- [ ] Community threat sharing
 
-- **⚡ Individual Codex/Claude Prompts** – Quick single-shot instructions for rapid iterations.
-- **👩‍💻 Infra & Agent Engineer Prompt**
-  - Wire additional agent intelligence into `src/infra/fetchAgent.js`.
-  - Extend the URLScan-driven sandbox pipeline in `src/infra/sandbox.js`.
-  - Flesh out Deepgram transcription in `src/infra/deepgram.js`.
-  - Use `analyzeInput({ url, audioFile })` from `src/infra/index.js` to orchestrate inputs.
-- **👨‍💻 Scraping & Scoring Engineer Prompt**
-  - Extend `src/core/scraper.js` to mimic Bright Data enrichment (WHOIS, reputation, keywords).
-  - Update `src/core/scorer.js` to reason over redirects, young domains, risky keywords, and transcripts.
-- **🧑‍💻 UI & Shell Engineer Prompt**
-  - Maintain the invisible Electron shell in `src/electron/main.js`.
-  - Expose IPC bridge via `src/electron/preload.js`.
-  - Shape the Detectify-style overlay in `src/electron/index.html` + `renderer.js`.
+## Credits
 
-This repo is now staged so each role can open their respective files and begin prompting/coding in parallel.
+Built for CalHacks 2025.
+
+**Technologies:**
+- Electron - Desktop framework
+- URLScan.io - URL sandbox analysis
+- Reka AI - Vision AI
+- Bright Data - Threat intelligence
+- Google APIs - Gmail integration
+- Tesseract.js - OCR (screen monitoring)
+
+## License
+
+MIT

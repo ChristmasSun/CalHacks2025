@@ -142,5 +142,29 @@
     "fingerprint": "2f9466008c6e13a19df2bdd85e85c3b00a0f9c79285899c4b6a1aa2475ba420a",
     "timestamp": 1761430083230,
     "scanDate": "2025-10-25T22:08:03.230Z"
+  },
+  {
+    "url": "https://example.com",
+    "fingerprint": "0f115db062b7c0dd030b16878c99dea5c354b49dc37b38eb8846179c7783e9d7",
+    "timestamp": 1761445189499,
+    "scanDate": "2025-10-26T02:19:49.499Z"
+  },
+  {
+    "url": "http://app.reka.ai/",
+    "fingerprint": "23c9d8c95e6fed15e5ad909ebf2da5708832d6dbcd09bf562f8cd4154455c9bc",
+    "timestamp": 1761445417791,
+    "scanDate": "2025-10-26T02:23:37.791Z"
+  },
+  {
+    "url": "https://app.reka.ai/chat",
+    "fingerprint": "8c479066aac878b29e2a0b90c03815fe9b809eb2bc1eacdac8f7842a4efa77eb",
+    "timestamp": 1761445432633,
+    "scanDate": "2025-10-26T02:23:52.633Z"
+  },
+  {
+    "url": "https://hello.com/",
+    "fingerprint": "1a22a94b2244f8ba0f6c0845ea003403e2e756598e19f1d0bf189324dc9ae71b",
+    "timestamp": 1761448406498,
+    "scanDate": "2025-10-26T03:13:26.498Z"
   }
 ]
