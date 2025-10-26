@@ -18,6 +18,7 @@ class RekaScreenMonitor {
     this.scanInterval = options.scanInterval || 30000; // Check every 30 seconds (AI analysis is expensive)
     this.onThreat = options.onThreat || (() => {});
     this.onAnalysis = options.onAnalysis || (() => {});
+    this.onSafe = options.onSafe || (() => {});
     this.isProcessing = false;
     this.enabled = false;
     this.rekaVision = getRekaVisionService();

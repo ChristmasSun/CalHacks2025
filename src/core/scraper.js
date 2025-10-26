@@ -42,14 +42,31 @@ async function enrichWithScrapedMetadata(analysis) {
   let brightDataAnalysis = null;
   let brightDataWhois = null;
 
-  if (url && brightDataClient.enabled) {
+  // Only run Bright Data enrichment if API is actually configured
+  // (prevents unnecessary WHOIS timeouts when Bright Data is disabled)
+  if (url && brightDataClient.enabled && process.env.BRIGHTDATA_API_TOKEN) {
     try {
       console.log('[Scraper] Enriching with Bright Data threat intelligence...');
 
-      // Run both analyses in parallel for speed
-      const [urlAnalysis, whoisData] = await Promise.all([
-        brightDataClient.analyzeUrl(url),
-        brightDataClient.getWhoisData(hostname)
+      // Run both analyses in parallel with 20-second timeout (reduced to prevent freezes)
+      const brightDataPromise = Promise.all([
+        brightDataClient.analyzeUrl(url).catch(err => {
+          console.warn('[Scraper] Bright Data URL analysis failed:', err.message);
+          return { success: false, error: err.message };
+        }),
+        brightDataClient.getWhoisData(hostname).catch(err => {
+          console.warn('[Scraper] WHOIS lookup failed:', err.message);
+          return { success: false, error: err.message };
+        })
+      ]);
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Bright Data timeout after 20 seconds')), 20000)
+      );
+
+      const [urlAnalysis, whoisData] = await Promise.race([
+        brightDataPromise,
+        timeoutPromise
       ]);
 
       brightDataAnalysis = urlAnalysis.success ? urlAnalysis.indicators : null;
@@ -62,7 +79,7 @@ async function enrichWithScrapedMetadata(analysis) {
         console.log('[Scraper] Bright Data WHOIS data retrieved successfully');
       }
     } catch (error) {
-      console.warn('[Scraper] Bright Data enrichment failed:', error.message);
+      console.warn('[Scraper] Bright Data enrichment failed (may have timed out):', error.message);
     }
   }
 

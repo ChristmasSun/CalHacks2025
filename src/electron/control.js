@@ -283,14 +283,43 @@ if (gmailBtn) {
 }
 
 function updateGmailUI(status) {
+  const gmailEmail = document.getElementById('gmail-email');
+  const gmailBadge = document.getElementById('gmail-badge');
+
   if (status.connected && status.email) {
     if (gmailTitle) gmailTitle.textContent = `Connected: ${status.email}`;
     if (gmailBtn) gmailBtn.textContent = 'Refresh Gmail';
+
+    // Show email address below the header
+    if (gmailEmail) {
+      gmailEmail.textContent = `Connected: ${status.email}`;
+      gmailEmail.style.display = 'block';
+    }
+
+    // Update badge
+    if (gmailBadge) {
+      gmailBadge.textContent = 'Connected';
+      gmailBadge.className = 'badge badge-success';
+      gmailBadge.style.display = 'inline-block';
+    }
+
     settings.gmailScan = true;
     saveSettings();
     updateSettingToggle('toggle-gmail-scan', true);
   } else {
     if (gmailTitle) gmailTitle.textContent = 'Not Connected';
+
+    // Hide email address
+    if (gmailEmail) {
+      gmailEmail.style.display = 'none';
+    }
+
+    // Update badge
+    if (gmailBadge) {
+      gmailBadge.textContent = 'Not Connected';
+      gmailBadge.className = 'badge badge-warning';
+      gmailBadge.style.display = 'inline-block';
+    }
   }
 }
 

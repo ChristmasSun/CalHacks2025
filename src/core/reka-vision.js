@@ -160,13 +160,26 @@ Be precise and only flag genuinely suspicious content.`;
         throw new Error('No response text found');
       }
 
-      // Try to parse JSON from the response
+      console.log('[RekaVision] Raw response:', message.substring(0, 500));
+
+      // Try to parse JSON from the response - use greedy match to get the last complete JSON
       const jsonMatch = message.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('No JSON found in response');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
+      let jsonString = jsonMatch[0];
+
+      // Try to fix common JSON issues
+      // 1. Remove any trailing text after the last }
+      const lastBrace = jsonString.lastIndexOf('}');
+      if (lastBrace !== -1) {
+        jsonString = jsonString.substring(0, lastBrace + 1);
+      }
+
+      console.log('[RekaVision] Attempting to parse JSON:', jsonString.substring(0, 300));
+
+      const parsed = JSON.parse(jsonString);
 
       // Validate required fields
       if (typeof parsed.riskScore !== 'number' || !parsed.category || !Array.isArray(parsed.threats)) {
