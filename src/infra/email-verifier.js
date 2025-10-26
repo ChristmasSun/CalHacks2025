@@ -136,7 +136,7 @@ class EmailVerifier {
     result.details.senderEmail = parsed.email;
     result.details.senderDomain = parsed.domain;
 
-    console.log(`[EmailVerifier] Verifying: ${from}`);
+    // console.log(`[EmailVerifier] Verifying: ${from}`);
 
     // 1. Check for brand impersonation in sender name
     const brandCheck = this.checkBrandImpersonation(parsed.name, parsed.domain);
@@ -191,7 +191,7 @@ class EmailVerifier {
     // Final risk assessment
     result.riskLevel = this.calculateRiskLevel(result.riskScore);
 
-    console.log(`[EmailVerifier] Risk score: ${result.riskScore}/100 (${result.riskLevel})`);
+    // console.log(`[EmailVerifier] Risk score: ${result.riskScore}/100 (${result.riskLevel})`);
 
     // Cache the result for 24 hours
     emailVerificationCache.set(cacheKey, result);
