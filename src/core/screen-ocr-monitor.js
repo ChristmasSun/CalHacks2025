@@ -20,8 +20,9 @@ class ScreenOCRMonitor {
     this.isProcessing = false;
     this.enabled = false;
 
-    // URL regex that matches most URL patterns
-    this.urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
+    // URL regex that matches URLs with or without protocol
+    // Matches: http://example.com, https://example.com, example.com, sub.example.com
+    this.urlRegex = /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{2,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)/gi;
   }
 
   /**
@@ -98,6 +99,9 @@ class ScreenOCRMonitor {
 
       console.log(`[ScreenOCR] Extracted ${text.length} characters from screen`);
 
+      // Log first 200 chars for debugging
+      console.log(`[ScreenOCR] Text preview: "${text.substring(0, 200).replace(/\n/g, ' ')}..."`);
+
       // Find URLs in extracted text
       this.findAndProcessURLs(text);
     } catch (error) {
@@ -171,25 +175,37 @@ class ScreenOCRMonitor {
   findAndProcessURLs(text) {
     const urls = text.match(this.urlRegex);
 
+    if (!urls || urls.length === 0) {
+      console.log('[ScreenOCR] ℹ️ No URLs found in extracted text');
+      return;
+    }
+
     if (urls && urls.length > 0) {
-      console.log(`[ScreenOCR] Found ${urls.length} URL(s) on screen`);
+      console.log(`[ScreenOCR] 🔍 Found ${urls.length} URL(s) on screen:`, urls);
 
       urls.forEach(url => {
         try {
           // Clean up URL (OCR sometimes adds extra characters)
-          const cleanUrl = this.cleanURL(url);
+          let cleanUrl = this.cleanURL(url);
+
+          // Add https:// if no protocol specified
+          if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+            cleanUrl = 'https://' + cleanUrl;
+          }
 
           // Validate URL structure
           const parsed = new URL(cleanUrl);
 
-          // Only process http/https URLs
-          if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+          // Only process http/https URLs with valid TLDs
+          if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+              parsed.hostname.includes('.')) {
+
             // Skip if we've already seen this URL recently (within last 30 seconds)
             if (this.seenURLs.has(cleanUrl)) {
               return;
             }
 
-            console.log('[ScreenOCR] New URL detected on screen:', cleanUrl);
+            console.log('[ScreenOCR] ✅ New URL detected on screen:', cleanUrl);
             this.seenURLs.add(cleanUrl);
 
             // Remove from seen list after 30 seconds
@@ -202,6 +218,7 @@ class ScreenOCRMonitor {
           }
         } catch (error) {
           // Invalid URL, skip silently
+          console.log('[ScreenOCR] ⚠️ Skipped invalid URL:', url, '(error:', error.message + ')');
         }
       });
     }

@@ -1462,7 +1462,7 @@ app.whenReady().then(async () => {
     try {
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
-        thumbnailSize: { width: 800, height: 600 } // Reduced from 1280x720 for better performance
+        thumbnailSize: { width: 1920, height: 1080 } // Higher resolution for better OCR accuracy
       });
 
       if (sources.length > 0) {
