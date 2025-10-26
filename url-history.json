@@ -70,5 +70,14 @@
     "riskScore": 75,
     "riskLevel": "high",
     "summary": "High chance of fraud. Do not interact without manual validation."
+  },
+  {
+    "url": "http://google.xyz/",
+    "fingerprint": "b5c152aa78b7019295ce87210adcb7ce3967d6fb95e59d312e0514167d509d40",
+    "timestamp": 1761453975512,
+    "scanDate": "2025-10-26T04:46:15.512Z",
+    "riskScore": 65,
+    "riskLevel": "medium",
+    "summary": "Moderate risk indicators present. Proceed with strong caution."
   }
 ]

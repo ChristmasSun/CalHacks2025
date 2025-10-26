@@ -182,7 +182,7 @@ function createControlWindow() {
   controlWindow.loadFile(path.join(__dirname, 'control.html'));
 
   // Open DevTools for debugging
-  controlWindow.webContents.openDevTools({ mode: 'detach' });
+  //controlWindow.webContents.openDevTools({ mode: 'detach' });
 
   controlWindow.on('closed', () => {
     controlWindow = null;

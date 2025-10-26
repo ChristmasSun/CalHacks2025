@@ -232,3 +232,22 @@ function getEducationalContent(result) {
 
 // Make closeNotification available globally
 window.closeNotification = closeNotification;
+
+// ============================================================================
+// REKA AI WARNINGS (using same notification system as URL scans)
+// ============================================================================
+
+// Listen for Reka AI warnings from main process
+window.electronAPI.onShowWarning((warning) => {
+  console.log('📨 Received Reka AI warning:', warning);
+
+  // Convert Reka AI warning format to notification format
+  const notificationData = {
+    risk: warning.risk,
+    reason: warning.reason,
+    url: null // Reka AI warnings don't have URLs
+  };
+
+  // Show using the same notification system as URL scans
+  showNotification(notificationData);
+});
