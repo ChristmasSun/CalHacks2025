@@ -1,4 +1,4 @@
-// Detectify Scam Detector - Main Process (MERGED: Avani's UI + Ved's Backend)
+// Protego Scam Detector - Main Process (MERGED: Avani's UI + Ved's Backend)
 // Real-time scam detection with URLScan.io, Gmail monitoring, and clipboard/window tracking
 
 // CRITICAL: Load Electron FIRST before any other modules (including dotenv)
@@ -166,12 +166,14 @@ function createControlWindow() {
     resizable: true,
     transparent: true, // Enable transparency for elegant glass effect
     backgroundColor: '#00000000', // Transparent background
+    opacity: 0.85, // Make window semi-transparent (0.0 = invisible, 1.0 = opaque)
     hasShadow: true,
     frame: false, // Frameless for custom design
     titleBarStyle: 'customButtonsOnHover', // Hide traffic lights until hover
     titleBarOverlay: false,
     roundedCorners: true, // macOS: rounded corners
     vibrancy: 'under-window', // macOS glass effect
+    icon: path.join(__dirname, '../../assets/protego-icon.png'), // Window icon
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -298,11 +300,21 @@ function parseEmailAddress(raw = '') {
   return (match ? match[1] : raw).trim().toLowerCase();
 }
 
+function parseEmailName(raw = '') {
+  // Extract name from "John Doe <john@example.com>" format
+  const match = raw.match(/^([^<]+)</);
+  if (match) {
+    return match[1].trim().replace(/['"]/g, ''); // Remove quotes
+  }
+  return null;
+}
+
 async function evaluateMessageRisk({ subject, snippet, fromAddress }) {
   const reasons = [];
   const subjectLower = (subject || '').toLowerCase();
   const snippetLower = (snippet || '').toLowerCase();
   const email = parseEmailAddress(fromAddress || '');
+  const senderName = parseEmailName(fromAddress || '');
 
   // Email Authenticity Verification
   try {
@@ -321,6 +333,31 @@ async function evaluateMessageRisk({ subject, snippet, fromAddress }) {
     console.log(`[Gmail] Email verification for ${fromAddress}: ${verification.riskLevel} risk (${verification.riskScore}/100)`);
   } catch (error) {
     console.warn('[Gmail] Email verification failed:', error.message);
+  }
+
+  // LinkedIn Identity Verification (NEW!)
+  // Cross-check if sender's name matches their email on LinkedIn
+  if (senderName && email && personVerifier.enabled) {
+    try {
+      console.log(`[Gmail] LinkedIn verification for ${senderName} <${email}>`);
+
+      const linkedInCheck = await personVerifier.verifyEmailSender({
+        name: senderName,
+        email: email,
+        company: null, // We don't have this from Gmail headers
+        title: null
+      });
+
+      if (linkedInCheck && !linkedInCheck.verified) {
+        // Person not found on LinkedIn OR email doesn't match
+        linkedInCheck.warnings.forEach(warning => reasons.push(`LinkedIn: ${warning}`));
+        console.log(`[Gmail] ⚠️ LinkedIn verification failed: ${linkedInCheck.warnings.join(', ')}`);
+      } else if (linkedInCheck && linkedInCheck.verified) {
+        console.log(`[Gmail] ✅ LinkedIn verification passed for ${senderName}`);
+      }
+    } catch (error) {
+      console.warn('[Gmail] LinkedIn verification failed:', error.message);
+    }
   }
 
   // Legacy keyword and pattern matching
@@ -1211,7 +1248,7 @@ function createTray() {
   }
 
   tray = new Tray(trayIcon);
-  tray.setToolTip('Detectify Scam Detector');
+  tray.setToolTip('Protego - Scam Protection');
   console.log('[ScamShield] Tray icon ready');
 
   const contextMenu = Menu.buildFromTemplate([

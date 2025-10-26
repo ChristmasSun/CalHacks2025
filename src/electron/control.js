@@ -1,6 +1,6 @@
-// Detectify Dashboard JavaScript
+// Protego Dashboard JavaScript
 
-console.log('Detectify dashboard loaded');
+console.log('Protego dashboard loaded');
 
 // ============================================================================
 // STATE MANAGEMENT
@@ -64,7 +64,7 @@ console.log('Found tab contents:', tabContents.length);
 
 tabButtons.forEach((button, index) => {
   console.log(`Setting up tab ${index}:`, button.getAttribute('data-tab'));
-  button.addEventListener('click', () => {
+  button.addEventListener('click', async () => {
     console.log('Tab clicked!', button.getAttribute('data-tab'));
     const tabName = button.getAttribute('data-tab');
 
@@ -78,6 +78,11 @@ tabButtons.forEach((button, index) => {
     if (targetContent) {
       targetContent.classList.add('active');
       console.log(`Switched to ${tabName} tab`);
+
+      // Load history when History tab is opened
+      if (tabName === 'history') {
+        await loadHistoryTab();
+      }
     } else {
       console.error(`Could not find tab content: tab-${tabName}`);
     }
@@ -227,9 +232,16 @@ clearAllStatsBtn.addEventListener('click', async () => {
   }
 });
 
-// Listen for scan results and update stats
+// Listen for scan results and update stats + history
 window.electronAPI.onScanResult(() => {
-  setTimeout(() => loadStats(true), 500);
+  setTimeout(() => {
+    loadStats(true);
+    // Reload history if History tab is currently open
+    const historyTab = document.getElementById('tab-history');
+    if (historyTab && historyTab.classList.contains('active')) {
+      loadHistoryTab();
+    }
+  }, 500);
 });
 
 // ============================================================================
@@ -391,7 +403,7 @@ function generateHTMLReport(data, stats) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Detectify Security Report - ${exportDate}</title>
+  <title>Protego Security Report - ${exportDate}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; background: #f9fafb; }
@@ -642,6 +654,7 @@ clearHistoryBtn.addEventListener('click', async () => {
     try {
       await window.electronAPI.clearHistory();
       await loadStats(true);
+      await loadHistoryTab(); // Reload the history tab to show "No scans yet"
       alert('Scan history cleared successfully!');
     } catch (error) {
       console.error('Failed to clear history:', error);
@@ -654,7 +667,107 @@ clearHistoryBtn.addEventListener('click', async () => {
 // HISTORY VIEW
 // ============================================================================
 
+const historyListContainer = document.getElementById('history-list');
 const viewAllHistoryBtn = document.getElementById('view-history-btn');
+
+/**
+ * Load and display scan history in the History tab
+ */
+async function loadHistoryTab() {
+  try {
+    console.log('[History] Loading scan history...');
+    const history = await window.electronAPI.getScanHistory();
+    console.log('[History] Loaded', history.length, 'history entries');
+
+    if (!historyListContainer) {
+      console.error('[History] history-list container not found');
+      return;
+    }
+
+    if (history.length === 0) {
+      historyListContainer.innerHTML = '<div class="result-empty">No scans yet</div>';
+      return;
+    }
+
+    // Build history HTML
+    let html = '';
+    history.forEach(entry => {
+      const date = new Date(entry.timestamp);
+      const timeAgo = getTimeAgo(date);
+      const riskClass = entry.riskLevel || 'low';
+      const riskColor = riskClass === 'high' ? 'var(--danger)' :
+                        riskClass === 'medium' ? 'var(--warning)' : 'var(--success)';
+
+      const sourceLabel = entry.source === 'gmail' ? '📧 Gmail' :
+                          entry.source === 'clipboard' ? '📋 Clipboard' :
+                          entry.source === 'active-window' ? '🪟 Browser' :
+                          entry.source === 'screen-ocr' ? '🔍 Screen OCR' :
+                          entry.source === 'reka-ai' ? '🤖 Reka AI' :
+                          entry.source === 'manual' ? '👤 Manual' : entry.source;
+
+      html += `
+        <div class="result-card" style="margin-bottom: 12px;">
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <span style="font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 6px;">${sourceLabel}</span>
+                <span style="font-size: 11px; color: var(--text-muted);">${timeAgo}</span>
+                ${entry.cached ? '<span style="font-size: 11px; color: #0a84ff; background: rgba(10,132,255,0.15); padding: 2px 8px; border-radius: 6px;">📋 Cached</span>' : ''}
+              </div>
+              <div style="font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 6px; word-break: break-all;">
+                ${entry.url || entry.subject || 'Unknown'}
+              </div>
+              ${entry.from ? `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">From: ${entry.from}</div>` : ''}
+              <div style="font-size: 12px; color: var(--text-secondary);">
+                ${entry.reason || 'No details'}
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 24px; font-weight: 700; color: ${riskColor};">
+                ${entry.riskScore || 0}
+              </div>
+              <div class="badge badge-${riskClass}" style="font-size: 9px; padding: 2px 6px;">
+                ${riskClass.toUpperCase()}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    historyListContainer.innerHTML = html;
+    console.log('[History] Displayed', history.length, 'entries');
+  } catch (error) {
+    console.error('[History] Failed to load history:', error);
+    if (historyListContainer) {
+      historyListContainer.innerHTML = '<div class="result-empty">Failed to load history</div>';
+    }
+  }
+}
+
+/**
+ * Get human-readable time ago string
+ */
+function getTimeAgo(date) {
+  const seconds = Math.floor((new Date() - date) / 1000);
+  const intervals = {
+    year: 31536000,
+    month: 2592000,
+    week: 604800,
+    day: 86400,
+    hour: 3600,
+    minute: 60
+  };
+
+  for (const [name, secondsInInterval] of Object.entries(intervals)) {
+    const interval = Math.floor(seconds / secondsInInterval);
+    if (interval >= 1) {
+      return `${interval} ${name}${interval !== 1 ? 's' : ''} ago`;
+    }
+  }
+
+  return 'Just now';
+}
 
 viewAllHistoryBtn.addEventListener('click', async () => {
   try {
@@ -671,7 +784,7 @@ viewAllHistoryBtn.addEventListener('click', async () => {
 // ============================================================================
 
 async function init() {
-  console.log('Initializing Detectify dashboard...');
+  console.log('Initializing Protego dashboard...');
 
   loadSettings();
   await autoEnableDemoMode(); // Auto-enable demo mode on first launch

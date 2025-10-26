@@ -1,7 +1,7 @@
 {
-  "name": "calhacks2025",
+  "name": "protego",
   "version": "0.1.0",
-  "description": "Starter Electron scam detection prototype.",
+  "description": "Protego - Advanced Scam Protection & Detection",
   "main": "src/electron/main.js",
   "author": "",
   "license": "MIT",
@@ -30,14 +30,26 @@
     "electron-builder": "^24.6.4"
   },
   "build": {
-    "appId": "com.calhacks.scamdetect",
+    "appId": "com.protego.scamprotection",
+    "productName": "Protego",
     "files": [
       "src/**/*",
-      "assets/icon.png",
+      "assets/protego-icon.png",
       "package.json"
     ],
     "directories": {
       "buildResources": "assets"
+    },
+    "mac": {
+      "icon": "assets/protego-icon.png",
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "icon": "assets/protego-icon.png"
+    },
+    "linux": {
+      "icon": "assets/protego-icon.png",
+      "category": "Utility"
     }
   }
 }

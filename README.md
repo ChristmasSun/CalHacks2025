@@ -1,6 +1,6 @@
-# Detectify - AI-Powered Real-Time Scam Detection
+# Protego - AI-Powered Real-Time Scam Detection
 
-Protect yourself from scams across emails, URLs, and messaging apps with AI-powered real-time monitoring. Detectify runs quietly in your system tray, analyzing threats before they reach you.
+Protect yourself from scams across emails, URLs, and messaging apps with AI-powered real-time monitoring. Protego runs quietly in your system tray, analyzing threats before they reach you.
 
 ## Key Features
 
@@ -35,8 +35,9 @@ URLSCAN_API_KEY=your_urlscan_api_key
 # Optional (for AI screen monitoring)
 REKA_API_KEY=your_reka_api_key
 
-# Optional (for enhanced detection)
+# Optional (for LinkedIn verification in Gmail)
 BRIGHTDATA_API_TOKEN=your_brightdata_token
+BRIGHTDATA_LINKEDIN_DATASET_ID=gd_lxxxxxxxxxxxxxxxxx
 
 # Optional (for Gmail integration)
 GOOGLE_CLIENT_ID=your_google_client_id
@@ -46,8 +47,17 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 **Get API Keys:**
 - **URLScan.io** (required): [https://urlscan.io/user/profile/](https://urlscan.io/user/profile/)
 - **Reka AI** (optional): [https://platform.reka.ai](https://platform.reka.ai)
-- **Bright Data** (optional): [https://brightdata.com/](https://brightdata.com/)
+- **Bright Data + LinkedIn** (optional): [https://brightdata.com/](https://brightdata.com/) - Get API token + LinkedIn dataset ID for identity verification
 - **Google OAuth** (optional): [Google Cloud Console](https://console.cloud.google.com/)
+
+**🔑 BrightData LinkedIn Setup** (for Gmail identity verification):
+1. Sign up at https://brightdata.com
+2. Go to Dashboard → Datasets
+3. Find or create a **LinkedIn** dataset
+4. Copy the dataset ID (format: `gd_lxxxxxxxxxxxxxxxxx`)
+5. Add both `BRIGHTDATA_API_TOKEN` and `BRIGHTDATA_LINKEDIN_DATASET_ID` to `.env`
+
+See `LINKEDIN_GMAIL_INTEGRATION.md` for detailed setup guide.
 
 ### 3. Run
 
@@ -69,6 +79,7 @@ Press `Cmd/Ctrl+Shift+C` to toggle the dashboard.
 2. **Multi-Stage Analysis**
    - **URLScan.io**: VM sandbox analysis with screenshot capture
    - **Bright Data**: WHOIS, domain age, phishing indicators
+   - **LinkedIn Verification**: Cross-checks email sender identity (Gmail only)
    - **Risk Scoring**: Combines signals into 0-100 risk score
    - **Smart Caching**: Instantly shows cached results for known URLs
 
@@ -97,16 +108,27 @@ The standout feature - analyzes your entire screen with vision AI:
 - Risk scores logged to history
 - Works across ANY app (Instagram, WhatsApp, iMessage, Telegram, etc.)
 
-### Gmail Integration
+### Gmail Integration with LinkedIn Verification
 
 1. Click "Connect Gmail" in dashboard
 2. Approve OAuth (read-only access)
 3. App scans recent emails for:
+   - **LinkedIn Identity Verification** - Cross-checks sender name with LinkedIn profile
    - Brand impersonation (paypa1.com, g00gle.com)
+   - Email domain mismatch (claims to be from Google but uses gmail.com)
    - Typosquatting
    - Suspicious urgency language
    - Young domain names
    - Known phishing patterns
+
+**NEW: LinkedIn Verification** 🔥
+- When someone emails you as "John Doe <john@company.com>", Protego:
+  1. Searches LinkedIn for "John Doe"
+  2. Finds their real company/email
+  3. Flags if email doesn't match LinkedIn profile
+  4. Detects fake personas and impersonators
+
+Requires **BrightData LinkedIn API** (see setup below)
 
 ## Dashboard
 
@@ -171,9 +193,10 @@ src/
 │   └── scorer.js                # Multi-signal risk scoring
 └── infra/
     ├── sandbox.js               # URLScan.io client
-    ├── brightdata.js            # Bright Data client
+    ├── brightdata.js            # Bright Data API client
+    ├── linkedin-verifier.js     # LinkedIn API wrapper
     ├── email-verifier.js        # Email authenticity checker
-    └── person-verifier.js       # LinkedIn verification
+    └── person-verifier.js       # Gmail sender identity verification
 ```
 
 ## Smart Features
@@ -205,21 +228,6 @@ src/
 - **Optional monitoring** - All features can be disabled
 - **Sandboxed analysis** - URLScan.io runs in isolated VMs
 
-## Development
-
-### Testing
-
-```bash
-# Test URLScan.io
-node test-urlscan.js https://example.com
-
-# Test Bright Data
-node test-brightdata.js
-
-# Test email verification
-node test-email-verifier.js
-```
-
 ### Building
 
 ```bash
@@ -249,12 +257,24 @@ npm run build
 - Verify OAuth credentials
 - Check redirect URI: `http://127.0.0.1:42862/oauth2callback`
 
+**LinkedIn verification not working**
+- Check `BRIGHTDATA_API_TOKEN` and `BRIGHTDATA_LINKEDIN_DATASET_ID` in `.env`
+- Restart app after adding credentials
+- LinkedIn verification runs automatically when Gmail is connected
+- Check console logs for `[Gmail] LinkedIn verification for...`
+
+**BrightData costs too much?**
+- LinkedIn verification is optional - remove API token to disable
+- App works without LinkedIn (uses keyword + domain checks only)
+- Consider caching results to reduce API calls
+
 ## What's Real vs Mock
 
 **Production-Ready:**
 - URLScan.io VM sandbox analysis ✅
 - Reka AI vision screen monitoring ✅
 - Bright Data threat intelligence ✅
+- **LinkedIn identity verification** ✅ (NEW!)
 - Gmail OAuth integration ✅
 - URL caching system ✅
 - Clipboard & screen monitoring ✅

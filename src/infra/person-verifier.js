@@ -221,6 +221,64 @@ class PersonVerifier {
   }
 
   /**
+   * Verify email sender identity via LinkedIn (FOR GMAIL SCANNING)
+   * Checks if the sender's name matches their email on LinkedIn
+   *
+   * @param {Object} sender - Sender info: { name, email, company?, title? }
+   * @returns {Promise<Object>} Verification result
+   */
+  async verifyEmailSender(sender) {
+    const result = {
+      verified: false,
+      confidence: 0,
+      warnings: [],
+      matches: [],
+      linkedInProfile: null
+    };
+
+    if (!sender.name || !sender.email) {
+      result.warnings.push('Missing name or email');
+      return result;
+    }
+
+    try {
+      // Use the LinkedIn verifier to search by name
+      const linkedInResult = await this.linkedInVerifier.verifyPerson({
+        name: sender.name,
+        email: sender.email,
+        text: `${sender.name} <${sender.email}>`
+      });
+
+      if (linkedInResult.verified && linkedInResult.profile) {
+        result.linkedInProfile = linkedInResult.profile;
+        result.confidence = linkedInResult.confidence;
+
+        // Check if email matches
+        if (linkedInResult.emailMatch === true) {
+          result.verified = true;
+          result.matches.push('Email matches LinkedIn profile');
+        } else if (linkedInResult.emailMatch === false) {
+          result.verified = false;
+          result.warnings.push(linkedInResult.warning || 'Email does not match LinkedIn profile');
+        } else {
+          // Neutral - couldn't verify email
+          result.verified = false;
+          result.warnings.push('Could not verify email against LinkedIn profile');
+        }
+      } else {
+        // Person not found on LinkedIn
+        result.warnings.push(linkedInResult.warning || 'Person not found on LinkedIn');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('[PersonVerifier] Email sender verification failed:', error.message);
+      result.warnings.push(`Verification error: ${error.message}`);
+      return result;
+    }
+  }
+
+  /**
    * Search for person on LinkedIn using Bright Data
    *
    * @param {string} name - Person's name

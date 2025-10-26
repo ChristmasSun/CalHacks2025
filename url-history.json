@@ -79,5 +79,68 @@
     "riskScore": 65,
     "riskLevel": "medium",
     "summary": "Moderate risk indicators present. Proceed with strong caution."
+  },
+  {
+    "url": "https://urlscan.io/user/profile/",
+    "fingerprint": "bc0a1a4f213ece24f25b8dbf748233d37c41f7fb2f9513c4b568458b8c378284",
+    "timestamp": 1761454663451,
+    "scanDate": "2025-10-26T04:57:43.451Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://urlscan.io/user/profile/)",
+    "fingerprint": "d1e4fb6271c24870efe3ede126e8747b2f263fe1249525a8b9b6bce6f5857e61",
+    "timestamp": 1761454681867,
+    "scanDate": "2025-10-26T04:58:01.867Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://platform.reka.ai",
+    "fingerprint": "1300bf924fb2c5b79c649b19763436f1a173c1dff14cc04a4fa8268050cb054a",
+    "timestamp": 1761455094975,
+    "scanDate": "2025-10-26T05:04:54.975Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://platform.reka.ai)",
+    "fingerprint": "fd817c679f8797eff12dd5af207556f1e34fe8353b34550534a82e4f274e9081",
+    "timestamp": 1761455095027,
+    "scanDate": "2025-10-26T05:04:55.027Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://example.com",
+    "fingerprint": "0f115db062b7c0dd030b16878c99dea5c354b49dc37b38eb8846179c7783e9d7",
+    "timestamp": 1761455108814,
+    "scanDate": "2025-10-26T05:05:08.814Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://brightdata.com/)",
+    "fingerprint": "fbfdc4e665ddc60258afd6f7a40783ea7b5830b268953b80c8b8ed3a71440495",
+    "timestamp": 1761455108850,
+    "scanDate": "2025-10-26T05:05:08.850Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://brightdata.com/",
+    "fingerprint": "0b770999a184d5d06c77b60a483993483bba1af944df6fedaf7dbbc977797d19",
+    "timestamp": 1761455108851,
+    "scanDate": "2025-10-26T05:05:08.851Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
   }
 ]
