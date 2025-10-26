@@ -112,8 +112,8 @@ class ScanQueue {
 
         const scanDuration = Date.now() - scanStart;
 
-        // Record the scan in history
-        urlHistory.recordScan(url, result?.assessment);
+        // Note: urlHistory.recordScan() is now called from orchestrateAnalysis()
+        // after the full risk assessment is complete, not here where we only have URLScan data
 
         // Update average scan time
         if (this.stats.averageScanTime === 0) {
