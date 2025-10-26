@@ -14,15 +14,13 @@ function getClipboard() {
   return clipboard;
 }
 
-const { urlHistory } = require('./url-history');
-
 class ClipboardMonitor {
   constructor(options = {}) {
     this.lastText = '';
+    this.lastProcessedUrl = ''; // Track the last URL we processed
     this.interval = null;
     this.pollInterval = options.pollInterval || 500; // Check every 500ms
     this.onURL = options.onURL || (() => {});
-    this.skipAlreadyScanned = options.skipAlreadyScanned !== false; // Default to true
 
     // Ultra-comprehensive URL regex - captures FULL URLs including query strings and fragments
     this.urlRegex = /https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)/gi;
@@ -39,17 +37,13 @@ class ClipboardMonitor {
 
       // Check both plain text and HTML content
       const currentText = clipboard.readText();
-      const htmlContent = clipboard.readHTML();
 
       // Process plain text URLs
       if (currentText && currentText !== this.lastText) {
+        // Clipboard content has changed
         this.lastText = currentText;
+        console.log('[ClipboardMonitor] Clipboard content changed');
         this.checkForURLs(currentText);
-      }
-
-      // Process HTML hyperlinks
-      if (htmlContent) {
-        this.checkForHyperlinks(htmlContent);
       }
     }, this.pollInterval);
   }
@@ -69,13 +63,11 @@ class ClipboardMonitor {
 
           // Only process http/https URLs
           if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-            // Skip if already scanned (unless disabled)
-            if (this.skipAlreadyScanned && urlHistory.hasBeenScanned(url)) {
-              console.log('[ClipboardMonitor] URL already scanned, skipping:', url);
-              return;
-            }
-
+            // Since we only call this when clipboard content changes,
+            // we always want to process the URL and show the banner
+            // This handles: X → Y → X (X gets scanned again)
             console.log('[ClipboardMonitor] Detected URL:', url);
+            this.lastProcessedUrl = url;
             this.onURL(url);
           }
         } catch (error) {
@@ -118,12 +110,8 @@ class ClipboardMonitor {
 
           // Only process http/https URLs
           if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-            // Skip if already scanned
-            if (this.skipAlreadyScanned && urlHistory.hasBeenScanned(url)) {
-              console.log('[ClipboardMonitor] Hyperlink already scanned, skipping:', url);
-              return;
-            }
-
+            // Always trigger onURL callback, even for cached URLs
+            // The orchestrateAnalysis function will handle showing cached results
             console.log('[ClipboardMonitor] Detected hyperlink:', url);
             this.onURL(url);
           }

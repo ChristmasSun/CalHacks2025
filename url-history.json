@@ -1,146 +1,74 @@
 [
   {
-    "url": "https://brightdata.com/cp/start",
-    "fingerprint": "29ac5bfc1166cf60931dee4e2dd7e1cd807b5e5fd6eb5e21af0dc4cf92bed583",
-    "timestamp": 1761380656520,
-    "scanDate": "2025-10-25T08:24:16.520Z"
+    "url": "http://spotifynovaprimes-gl.ct.ws/en",
+    "fingerprint": "5286181ece89c1944de801dd17f61f994c67d54e1937c91fe45ac0ede091627d",
+    "timestamp": 1761448204689,
+    "scanDate": "2025-10-26T03:10:04.689Z",
+    "riskScore": 65,
+    "riskLevel": "medium",
+    "summary": "Moderate risk indicators present. Proceed with strong caution."
   },
   {
-    "url": "https://aka.ms/github-copilot-manage-overage",
-    "fingerprint": "6eee184cc329ac4db8a5c2fb2c40b6ae3ecc46709183bf2bd361d43e63593bf4",
-    "timestamp": 1761380716835,
-    "scanDate": "2025-10-25T08:25:16.835Z"
+    "url": "http://accounts_login.cz/google.com",
+    "fingerprint": "09a5ff271eb570a6fb1e3ef0a85cf2e351bd1d332b643e924696e145d344c59f",
+    "timestamp": 1761449776959,
+    "scanDate": "2025-10-26T03:36:16.959Z",
+    "riskScore": 75,
+    "riskLevel": "high",
+    "summary": "High chance of fraud. Do not interact without manual validation."
   },
   {
-    "url": "https://console.anthropic.com/oauth/authorize?code=true&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A61435%2Fcallback&scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference&code_challenge=EUtt-d-x4vrPdcCX-HzmwmEjpPvVDLmlWiDUNEuvZas&code_challenge_method=S256&state=Vf3leK52D5ya-4HDMunu4NTWlbzrJlUF4EFdKyjaYyg",
-    "fingerprint": "c3b08940ff13e8bd7ee71297f1c2b8adeee74418e73e8d3865aa67f180a9a810",
-    "timestamp": 1761380880048,
-    "scanDate": "2025-10-25T08:28:00.048Z"
+    "url": "http://google.com.cust_login.ie",
+    "fingerprint": "e47d86e48c7bbcfbab5423d848aeb6dd56d67cf615593470674a7c57786e4fa4",
+    "timestamp": 1761450448246,
+    "scanDate": "2025-10-26T03:47:28.246Z",
+    "riskScore": 75,
+    "riskLevel": "high",
+    "summary": "High chance of fraud. Do not interact without manual validation."
   },
   {
-    "url": "chrome://newtab/",
-    "fingerprint": "4b15aabcdec3a91ba32ccdcb2b93bc470681fdb20ac620691f44cdab41fffb44",
-    "timestamp": 1761380935178,
-    "scanDate": "2025-10-25T08:28:55.178Z"
+    "url": "https://reli-fi-mvp-tllx.vercel.app/",
+    "fingerprint": "4b829e72ef57ae95045c826d1e0d75294c73ea4806786382f1aeecc34e4953b3",
+    "timestamp": 1761451590106,
+    "scanDate": "2025-10-26T04:06:30.106Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
   },
   {
-    "url": "http://wtflol.com/",
-    "fingerprint": "e4ca55215dcfe653ab6d4c3372582163799f1c8151cd4cae91e138bb07fcb167",
-    "timestamp": 1761380960050,
-    "scanDate": "2025-10-25T08:29:20.050Z"
+    "url": "http://google.com.cust_login11.ie",
+    "fingerprint": "d70b8681a711b3c7c3cf903fc0a2bab1987d70ae04259f03e80dda5a5d5a96b6",
+    "timestamp": 1761451724355,
+    "scanDate": "2025-10-26T04:08:44.355Z",
+    "riskScore": 75,
+    "riskLevel": "high",
+    "summary": "High chance of fraud. Do not interact without manual validation."
   },
   {
-    "url": "https://www.kaggle.com/datasets/sid321axn/malicious-urls-dataset",
-    "fingerprint": "52598520559d2f61352185fb87321c05b242a6015775011925781298dd19ba58",
-    "timestamp": 1761380986282,
-    "scanDate": "2025-10-25T08:29:46.282Z"
+    "url": "https://www.du.edu/it/services/security/5-url-warning-signs",
+    "fingerprint": "2cce33f1dc0f08ee2adedc966b318ca3ec75c19de2fd75976e934d80980fc8bb",
+    "timestamp": 1761452015504,
+    "scanDate": "2025-10-26T04:13:35.504Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
   },
   {
-    "url": "https://banking.firsttechfed.com/DashboardV2",
-    "fingerprint": "cd1f72ce9903fa0259a2d699283219993e07c63b327696ce1e7431b14acf4c8c",
-    "timestamp": 1761381013625,
-    "scanDate": "2025-10-25T08:30:13.625Z"
+    "url": "http://accounts11_login.cz/google.com",
+    "fingerprint": "fdaa907e2baadc4602f14aded70abb8c57cf7efc8c5f17df437bd2aaf07c4fcd",
+    "timestamp": 1761452016108,
+    "scanDate": "2025-10-26T04:13:36.108Z",
+    "riskScore": 75,
+    "riskLevel": "high",
+    "summary": "High chance of fraud. Do not interact without manual validation."
   },
   {
-    "url": "https://brightdata.com/cp/setting/users",
-    "fingerprint": "f355070a4065c79029dcddd1fb5ac3736310b3523968e2c19f9004be9b2f19f4",
-    "timestamp": 1761382082543,
-    "scanDate": "2025-10-25T08:48:02.543Z"
-  },
-  {
-    "url": "https://docs.claude.com/en/docs/about-claude/models/overview",
-    "fingerprint": "4f6747b2d91514bc768b92934644e49e781f9376edb7929159cb10d8d479eb57",
-    "timestamp": 1761382409320,
-    "scanDate": "2025-10-25T08:53:29.320Z"
-  },
-  {
-    "url": "https://files.slack.com/files-pri/T09JP6D8PU0-F09NKA8NG8J/20251024_162727.jpg",
-    "fingerprint": "965d590a1ed927f00688272e6bfca40d6da1017c9a3f477e4c7cbdbfd7ba6ce2",
-    "timestamp": 1761382518042,
-    "scanDate": "2025-10-25T08:55:18.042Z"
-  },
-  {
-    "url": "https://maps.app.goo.gl/Es7wbok8ujKDuhU6A?g_st=ipc&_imcp=1",
-    "fingerprint": "e8318f290d43b5a01947529434cc18cc554ff2b171a6411a209e5991df9e72c5",
-    "timestamp": 1761383263445,
-    "scanDate": "2025-10-25T09:07:43.445Z"
-  },
-  {
-    "url": "https://console.anthropic.com/settings/keys",
-    "fingerprint": "761903a53055307ac4a286f3bb50ac3d366eb3358824492c6e4336e88ca92851",
-    "timestamp": 1761383949009,
-    "scanDate": "2025-10-25T09:19:09.009Z"
-  },
-  {
-    "url": "https://brightdata.com/cp/deep_lookup",
-    "fingerprint": "9f72f4d1a391c3d217350b91c40f1820ce9f995e1ed9cb83b5e3b12a6f6f7a8f",
-    "timestamp": 1761384226169,
-    "scanDate": "2025-10-25T09:23:46.169Z"
-  },
-  {
-    "url": "https://brightdata.com/cp/datasets/browse",
-    "fingerprint": "33e5dca98e3751174c71b519618f49e3f7942557b28b32ebc7a17b4d5c420beb",
-    "timestamp": 1761384238714,
-    "scanDate": "2025-10-25T09:23:58.714Z"
-  },
-  {
-    "url": "https://brightdata.com/cp/datasets/browse/gd_l1viktl72bvl7bjuj0?id=hl_83a43569&tab=statistics",
-    "fingerprint": "c3f312e324fee422a5bbb083fca57e7ddd8183f1d9ef9247c528c1370e079e21",
-    "timestamp": 1761384272793,
-    "scanDate": "2025-10-25T09:24:32.793Z"
-  },
-  {
-    "url": "https://brightdata.com/cp/mcp?id=hl_83a43569&tab=statistics",
-    "fingerprint": "0afcb804aaf3a02e8855a28c859efdee62661f6510d921a1b8158f32edbc8662",
-    "timestamp": 1761384300928,
-    "scanDate": "2025-10-25T09:25:00.928Z"
-  },
-  {
-    "url": "https://docs.brightdata.com/introduction",
-    "fingerprint": "587e4c1233a09cf7592cc2b7ec730b4be30438adb0b7e460af2d61325e539bd7",
-    "timestamp": 1761384324528,
-    "scanDate": "2025-10-25T09:25:24.528Z"
-  },
-  {
-    "url": "https://claude.ai/chat/484409bc-a714-40f8-bac4-a6fe5081b929",
-    "fingerprint": "4a31ccec28c0978f033becda45162d0888d59baeeaed382742519142994accf1",
-    "timestamp": 1761426226662,
-    "scanDate": "2025-10-25T21:03:46.662Z"
-  },
-  {
-    "url": "https://web.stanford.edu/class/math51/stanford/math51book.pdf",
-    "fingerprint": "60e1e577dbee60457eeb0f1cce7bb768a2aeb00008148a6b1a79c3742aa2b466",
-    "timestamp": 1761426243022,
-    "scanDate": "2025-10-25T21:04:03.022Z"
-  },
-  {
-    "url": "https://login.stanford.edu/idp/profile/SAML2/Redirect/SSO?execution=e1s2",
-    "fingerprint": "fcce94485e424b4f3aca406372717c9a75653505d8ecb29fcbd204ed0682aa73",
-    "timestamp": 1761426262884,
-    "scanDate": "2025-10-25T21:04:22.884Z"
-  },
-  {
-    "url": "https://claude.ai/chat/d5e03421-c53e-45fa-b2f1-20eb05761885",
-    "fingerprint": "3b704006598bb5741aee8ad67b07e481939c4bcd98dba1a17c32f1e67fbeeef6",
-    "timestamp": 1761427944014,
-    "scanDate": "2025-10-25T21:32:24.014Z"
-  },
-  {
-    "url": "https://terac.com/challenge",
-    "fingerprint": "658af2301b78870db96ab63a1655c99b190ec1c85680db6fcf4a5e0eb166bf42",
-    "timestamp": 1761427958393,
-    "scanDate": "2025-10-25T21:32:38.393Z"
-  },
-  {
-    "url": "http://wtf.com/",
-    "fingerprint": "c74e24eb04615a163bc68629a3428071b3113f4ec397345bc5c341f3abee4956",
-    "timestamp": 1761430070761,
-    "scanDate": "2025-10-25T22:07:50.761Z"
-  },
-  {
-    "url": "https://www.anthropic.com/claude/opus",
-    "fingerprint": "2f9466008c6e13a19df2bdd85e85c3b00a0f9c79285899c4b6a1aa2475ba420a",
-    "timestamp": 1761430083230,
-    "scanDate": "2025-10-25T22:08:03.230Z"
+    "url": "http://accounts112_login.cz/google.com",
+    "fingerprint": "106cfde1d4c4cf90c9efd6b6b6bbea0acc06bee77d137d5cd19479c566cb8377",
+    "timestamp": 1761452122312,
+    "scanDate": "2025-10-26T04:15:22.312Z",
+    "riskScore": 75,
+    "riskLevel": "high",
+    "summary": "High chance of fraud. Do not interact without manual validation."
   }
 ]

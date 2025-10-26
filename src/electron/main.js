@@ -33,6 +33,38 @@ process.on('unhandledRejection', (reason) => {
   console.error('[ScamShield] Unhandled promise rejection:', reason);
 });
 
+// Memory monitoring to prevent crashes
+let memoryWarningLogged = false;
+setInterval(() => {
+  const usage = process.memoryUsage();
+  const heapUsedMB = Math.round(usage.heapUsed / 1024 / 1024);
+  const heapTotalMB = Math.round(usage.heapTotal / 1024 / 1024);
+
+  // Warn if using more than 500MB
+  if (heapUsedMB > 500 && !memoryWarningLogged) {
+    console.warn(`[ScamShield] HIGH MEMORY USAGE: ${heapUsedMB}MB / ${heapTotalMB}MB`);
+    console.warn('[ScamShield] Consider disabling Screen OCR or reducing monitoring frequency');
+    memoryWarningLogged = true;
+  }
+
+  // Reset warning flag when memory drops
+  if (heapUsedMB < 400) {
+    memoryWarningLogged = false;
+  }
+
+  // Emergency stop if memory exceeds 800MB
+  if (heapUsedMB > 800) {
+    console.error(`[ScamShield] CRITICAL MEMORY: ${heapUsedMB}MB - Auto-stopping OCR monitoring`);
+    if (screenOCRMonitor) {
+      screenOCRMonitor.stop().catch(err => console.error(err));
+    }
+    if (global.gc) {
+      console.log('[ScamShield] Forcing garbage collection...');
+      global.gc();
+    }
+  }
+}, 30000); // Check every 30 seconds
+
 // ============================================================================
 // GLOBAL STATE
 // ============================================================================
@@ -578,78 +610,153 @@ async function startGmailOAuthFlow() {
 // ============================================================================
 
 async function orchestrateAnalysis({ url, audioFile, autoDetected = false } = {}) {
-  if (!url && !audioFile) {
-    throw new Error('Supply a URL, an audio file, or both for analysis.');
-  }
-
-  console.log(`[ScamShield] Starting analysis for ${url || audioFile} (auto: ${autoDetected})`);
-
-  // Use queue for URLScan.io to handle rate limiting
-  let sandboxMetadata = null;
-  if (url) {
-    console.log(`[ScamShield] Queueing URL scan (${scanQueue.getQueueLength()} in queue)`);
-    try {
-      sandboxMetadata = await scanQueue.enqueue(url);
-    } catch (error) {
-      console.error('[ScamShield] URLScan.io failed:', error.message);
-      // Continue with other analyses even if URLScan fails
+  try {
+    if (!url && !audioFile) {
+      throw new Error('Supply a URL, an audio file, or both for analysis.');
     }
+
+    console.log(`[ScamShield] Starting analysis for ${url || audioFile} (auto: ${autoDetected})`);
+
+    // Use queue for URLScan.io to handle rate limiting
+    let sandboxMetadata = null;
+    let cachedResult = null;
+
+    if (url) {
+      console.log(`[ScamShield] Queueing URL scan (${scanQueue.getQueueLength()} in queue)`);
+      try {
+        // Add 35-second timeout to prevent infinite hangs
+        // URLScan.io typically returns within 30 seconds, or fails immediately
+        sandboxMetadata = await Promise.race([
+          scanQueue.enqueue(url),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('URLScan timeout after 35 seconds')), 35000)
+          )
+        ]);
+
+        // Check if this is a cached result
+        if (sandboxMetadata?.cached && sandboxMetadata?.previousScan) {
+          cachedResult = sandboxMetadata.previousScan;
+          console.log('[ScamShield] ✅ Using cached scan result for:', url);
+          console.log('[ScamShield] Cached risk score:', cachedResult.riskScore, '| Level:', cachedResult.riskLevel);
+        }
+      } catch (error) {
+        console.error('[ScamShield] URLScan.io failed:', error.message);
+        console.log('[ScamShield] Continuing analysis without URLScan data');
+        // Continue with other analyses even if URLScan fails
+        sandboxMetadata = null;
+      }
+    }
+
+    // If we have a cached result, use it directly (normalize field names)
+    let assessment;
+    if (cachedResult) {
+      // Convert cached result format to assessment format
+      assessment = {
+        risk_score: cachedResult.riskScore || 0,
+        risk_level: cachedResult.riskLevel || 'unknown',
+        summary: cachedResult.summary || 'Previously scanned URL (cached result)',
+        rawSignals: [], // Cached results don't have raw signals
+        recommendations: [],
+        cached: true,
+        cachedAt: cachedResult.scanDate
+      };
+      console.log('[ScamShield] Using cached assessment:', assessment);
+    } else {
+      // Get other analysis results
+      try {
+        // Add timeout for the entire analysis pipeline (scraper + agent + scorer)
+        const analysisPromise = (async () => {
+          const infraResult = {
+            url,
+            sandboxMetadata,
+            agentFindings: url ? await queryFetchAgent({ url }) : null,
+            transcript: audioFile ? await transcribeAudio({ filePath: audioFile }) : null
+          };
+
+          const enriched = await enrichWithScrapedMetadata(infraResult);
+          return scoreRisk(enriched);
+        })();
+
+        // Race the analysis against a 20-second timeout
+        assessment = await Promise.race([
+          analysisPromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Analysis pipeline timeout after 20 seconds')), 20000)
+          )
+        ]);
+      } catch (error) {
+        console.error('[ScamShield] Analysis pipeline failed:', error.message);
+        console.error('[ScamShield] Stack trace:', error.stack);
+        // Create a default high-risk assessment for suspicious/malformed URLs
+        assessment = {
+          risk_score: 75,
+          risk_level: 'high',
+          summary: `Analysis error: ${error.message}. URL may be malformed or suspicious.`,
+          rawSignals: ['Analysis pipeline error', 'Potentially malformed URL'],
+          recommendations: [
+            'Do not visit this URL',
+            'Verify the URL structure is correct',
+            'Check for typos or suspicious patterns'
+          ]
+        };
+      }
+    }
+
+    const payload = {
+      assessment,
+      rawSignals: assessment.rawSignals,
+      autoDetected
+    };
+
+    // Send results to control window AND overlay window (for top-right notifications)
+    const scanResult = {
+      risk: assessment.risk_score || 0,
+      reason: assessment.summary || 'Analysis complete',
+      url: url || audioFile,
+      source: autoDetected?.source || 'manual',
+      blocked: assessment.risk_score >= 70,
+      cached: assessment.cached || false // Indicate if this is a cached result
+    };
+
+    // Add to scan history (for UI timeline)
+    if (scanHistory) {
+      await scanHistory.addScan(scanResult);
+    }
+
+    // Record in URL history database (for caching - only if not already cached)
+    if (url && !assessment.cached) {
+      const { urlHistory } = require('../core/url-history');
+      urlHistory.recordScan(url, assessment);
+    }
+
+    if (controlWindow && !controlWindow.isDestroyed()) {
+      controlWindow.webContents.send('scan-result', scanResult);
+    }
+
+    // Send to overlay for top-right dropdown notifications
+    // The notification system will automatically show for medium/high risk
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.webContents.send('scan-result', scanResult);
+      console.log('[ScamShield] Sent scan result to overlay (risk:', assessment.risk_score, ')');
+    }
+
+    return assessment;
+  } catch (error) {
+    console.error('[ScamShield] CRITICAL ERROR in orchestrateAnalysis:', error.message);
+    console.error('[ScamShield] Stack trace:', error.stack);
+
+    // Return a safe error result instead of crashing
+    return {
+      risk_score: 80,
+      risk_level: 'high',
+      summary: `Critical analysis error: ${error.message}`,
+      rawSignals: ['Analysis crashed', 'URL may be malicious or malformed'],
+      recommendations: [
+        'Do not visit this URL',
+        'Contact security team if you clicked this link'
+      ]
+    };
   }
-
-  // Get other analysis results
-  const infraResult = {
-    url,
-    sandboxMetadata,
-    agentFindings: url ? await queryFetchAgent({ url }) : null,
-    transcript: audioFile ? await transcribeAudio({ filePath: audioFile }) : null
-  };
-
-  const enriched = await enrichWithScrapedMetadata(infraResult);
-  const assessment = scoreRisk(enriched);
-
-  const payload = {
-    assessment,
-    rawSignals: assessment.rawSignals,
-    autoDetected
-  };
-
-  // Send results to control window AND overlay window (for top-right notifications)
-  const scanResult = {
-    risk: assessment.risk_score || 0,
-    reason: assessment.summary || 'Analysis complete',
-    url: url || audioFile,
-    source: autoDetected?.source || 'manual',
-    blocked: assessment.risk_score >= 70
-  };
-
-  // Add to scan history
-  if (scanHistory) {
-    await scanHistory.addScan(scanResult);
-  }
-
-  if (controlWindow && !controlWindow.isDestroyed()) {
-    controlWindow.webContents.send('scan-result', scanResult);
-  }
-
-  // Also send to overlay for top-right dropdown notifications
-  if (overlayWindow && !overlayWindow.isDestroyed()) {
-    overlayWindow.webContents.send('scan-result', scanResult);
-  }
-
-  // Show alert on overlay if high risk
-  if (assessment.risk_score >= 70 && overlayWindow && !overlayWindow.isDestroyed()) {
-    overlayWindow.webContents.send('show-warning', {
-      risk: assessment.risk_score,
-      reason: assessment.summary,
-      analysis: {
-        signals: assessment.rawSignals || [],
-        recommendations: assessment.recommendations || []
-      },
-      timestamp: Date.now()
-    });
-  }
-
-  return assessment;
 }
 
 // ============================================================================
@@ -678,9 +785,9 @@ ipcMain.handle('start-monitoring', async () => {
     console.log('[ScamShield] Clipboard monitoring started');
   }
 
-  // Start active window monitoring
+  // Start active window monitoring (increased interval to reduce CPU load)
   if (!activeWindowMonitorInterval) {
-    activeWindowMonitorInterval = setInterval(checkActiveWindow, 3000);
+    activeWindowMonitorInterval = setInterval(checkActiveWindow, 5000); // Changed from 3s to 5s
     console.log('[ScamShield] Active window monitoring started');
   }
 
@@ -877,15 +984,6 @@ ipcMain.handle('start-demo-auto-scan', async () => {
     }
     if (overlayWindow && !overlayWindow.isDestroyed()) {
       overlayWindow.webContents.send('scan-result', scan);
-
-      // Show warning for high risk
-      if (scan.risk >= 70) {
-        overlayWindow.webContents.send('show-warning', {
-          risk: scan.risk,
-          reason: scan.reason,
-          timestamp: Date.now()
-        });
-      }
     }
   }, 8000); // Every 8 seconds
 
@@ -1002,7 +1100,7 @@ function createTray() {
       click: (menuItem) => {
         if (menuItem.checked) {
           if (!activeWindowMonitorInterval) {
-            activeWindowMonitorInterval = setInterval(checkActiveWindow, 3000);
+            activeWindowMonitorInterval = setInterval(checkActiveWindow, 5000); // Changed from 3s to 5s
             console.log('[ScamShield] Active window monitoring enabled');
           }
         } else {
@@ -1049,6 +1147,7 @@ app.whenReady().then(async () => {
 
   // Create UI windows
   createControlWindow();
+  createOverlayWindow(); // Create overlay on startup so it's always available
   createTray();
 
   // Register global keyboard shortcut (Cmd/Ctrl + Shift + C to toggle)
@@ -1096,19 +1195,14 @@ app.whenReady().then(async () => {
         return;
       }
 
-      // Check if already scanned recently
-      if (scanCache.has(url)) {
-        console.log('[ScamShield] URL already scanned recently, skipping');
-        return;
-      }
-
-      // Check if already in queue
+      // Check if already in queue (prevent duplicate queue entries)
       if (scanQueue.isQueued(url)) {
         console.log('[ScamShield] URL already in scan queue, skipping');
         return;
       }
 
-      // Mark as scanned and trigger analysis
+      // Always trigger analysis - orchestrateAnalysis will handle cached results
+      // and show them to the user with the "📋 Cached" badge
       scanCache.set(url, true);
       console.log('[ScamShield] Auto-scanning URL from clipboard...');
 
@@ -1120,7 +1214,7 @@ app.whenReady().then(async () => {
 
   // Initialize screen OCR monitoring (scans visible URLs on screen)
   screenOCRMonitor = new ScreenOCRMonitor({
-    scanInterval: 15000, // Check screen every 15 seconds (OCR is CPU-intensive)
+    scanInterval: 30000, // Check screen every 30 seconds (OCR is VERY CPU-intensive, increased from 15s)
     onURL: (url) => {
       console.log('[ScamShield] Screen OCR detected URL:', url);
 
@@ -1152,7 +1246,7 @@ app.whenReady().then(async () => {
     try {
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
-        thumbnailSize: { width: 1280, height: 720 } // Lower res for faster OCR
+        thumbnailSize: { width: 800, height: 600 } // Reduced from 1280x720 for better performance
       });
 
       if (sources.length > 0) {

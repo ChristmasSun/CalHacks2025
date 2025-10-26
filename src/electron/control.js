@@ -109,12 +109,15 @@ function displayScanResult(result) {
   // Add success celebration for safe URLs
   const celebrateClass = result.risk < 40 ? 'celebrate' : '';
 
+  // Check if this is a cached result
+  const cachedBadge = result.cached ? '<span class="cached-badge" style="font-size: 10px; opacity: 0.7; margin-left: 6px;">📋 Cached</span>' : '';
+
   scanInfo.innerHTML = `
     <div class="scan-result-card fade-in ${celebrateClass}" onclick="this.classList.toggle('expanded')">
       <div class="scan-result-header">
         <div class="scan-result-icon">${icon}</div>
         <div class="scan-result-info">
-          <div class="scan-result-title">${riskLevelText}</div>
+          <div class="scan-result-title">${riskLevelText}${cachedBadge}</div>
           <div class="scan-result-subtitle">Risk: ${result.risk}%</div>
         </div>
         <div class="badge ${badgeClass}" style="margin-left: auto;">${riskLevelText}</div>
@@ -753,3 +756,4 @@ autoScanDemoBtn.addEventListener('click', async () => {
     console.error('Failed to toggle auto-scan:', error);
   }
 });
+
