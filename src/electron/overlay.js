@@ -18,13 +18,10 @@ let notificationIdCounter = 0;
 window.electronAPI.onScanResult((result) => {
   console.log('📬 Received scan result notification:', result);
 
-  // Only show notifications for medium and high risk (40+)
-  if (result.risk >= 40) {
-    console.log('⚠️ Showing notification for medium/high risk URL');
-    showNotification(result);
-  } else {
-    console.log('✅ Low risk URL, skipping notification');
-  }
+  // TEMPORARY: Show notifications for ALL URLs (even safe ones)
+  // TODO: Change back to `result.risk >= 40` for production
+  console.log('📣 Showing notification for URL (risk:', result.risk, ')');
+  showNotification(result);
 });
 
 // Play sound effect based on risk level

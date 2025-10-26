@@ -829,6 +829,21 @@ async function orchestrateAnalysis({ url, audioFile, autoDetected = false } = {}
       console.log('[ScamShield] Sent scan result to overlay (risk:', assessment.risk_score, ')');
     }
 
+    // TEMPORARY: Show system notification for ALL scans (even safe ones)
+    // TODO: Change back to only high/medium risk for production
+    if (appSettings.notifications) {
+      const riskLevel = assessment.risk_score >= 70 ? 'HIGH RISK' :
+                        assessment.risk_score >= 40 ? 'MEDIUM RISK' : 'SAFE';
+      const icon = assessment.risk_score >= 70 ? '🚨' :
+                   assessment.risk_score >= 40 ? '⚠️' : '✅';
+
+      new Notification({
+        title: `${icon} Protego Scan Complete`,
+        body: `${url}\nRisk: ${riskLevel} (${assessment.risk_score}/100)\n${assessment.summary || 'Analysis complete'}`,
+        silent: assessment.risk_score < 40 // Only make sound for risky URLs
+      }).show();
+    }
+
     return assessment;
   } catch (error) {
     console.error('[ScamShield] CRITICAL ERROR in orchestrateAnalysis:', error.message);
@@ -1449,10 +1464,10 @@ app.whenReady().then(async () => {
       // Add to cache
       scanCache.set(url, { scanned: true, timestamp: Date.now() });
 
-      // Queue the scan
-      scanQueue.add(url, async () => {
-        console.log('[ScamShield] Auto-scanning URL from screen:', url);
-        await orchestrateAnalysis(url, null, { autoDetected: true, source: 'screen-ocr' });
+      // Queue the scan (don't use scanQueue - just call orchestrateAnalysis directly)
+      console.log('[ScamShield] Auto-scanning URL from screen:', url);
+      orchestrateAnalysis({ url, autoDetected: true }).catch(err => {
+        console.error('[ScamShield] Screen OCR scan failed:', err.message);
       });
     }
   });

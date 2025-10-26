@@ -142,5 +142,77 @@
     "riskScore": 15,
     "riskLevel": "low",
     "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "http://bcd.com/",
+    "fingerprint": "f63efd86106632209cb4579eb89ebd51815af9afb9c181a36ff1ecd4941b8084",
+    "timestamp": 1761457518900,
+    "scanDate": "2025-10-26T05:45:18.900Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "http://banking.xyz/",
+    "fingerprint": "35c1758c77c6e31d31cf7adf0d69ef919bf3b55312ffc1fc133172cc86138c9f",
+    "timestamp": 1761457584185,
+    "scanDate": "2025-10-26T05:46:24.185Z",
+    "riskScore": 25,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "http://testsafebrowsing.appspot.com/s/malware.html",
+    "fingerprint": "4aa37f1e6929fcb183d1e7c30a4aa61fbab96f215a027c2542796f406365f82d",
+    "timestamp": 1761457626093,
+    "scanDate": "2025-10-26T05:47:06.093Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "http://banking-scam.xyz/",
+    "fingerprint": "72bfb82ed8bce7fe90135de7a94db892ae4a4a3ebc1264dad77cd937e0883b28",
+    "timestamp": 1761457642845,
+    "scanDate": "2025-10-26T05:47:22.845Z",
+    "riskScore": 25,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "http://thisisscam.com/",
+    "fingerprint": "e71b4c507536269bca055c1fd03213680126c83d9735ea09570ab8b9c6b8dfa0",
+    "timestamp": 1761457663170,
+    "scanDate": "2025-10-26T05:47:43.170Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "chrome://newtab/",
+    "fingerprint": "4b15aabcdec3a91ba32ccdcb2b93bc470681fdb20ac620691f44cdab41fffb44",
+    "timestamp": 1761457668643,
+    "scanDate": "2025-10-26T05:47:48.643Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://wtf.com/",
+    "fingerprint": "8572331a6713a9570d25213023911143319e06bb3312184ae8bf079ab38f8bd5",
+    "timestamp": 1761457701870,
+    "scanDate": "2025-10-26T05:48:21.870Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://wt.corr",
+    "fingerprint": "f7ff001e892da9b9d866d7064edd8cc1729dc83a1bb330b6adcff0c9bb0fb083",
+    "timestamp": 1761457944305,
+    "scanDate": "2025-10-26T05:52:24.305Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
   }
 ]
