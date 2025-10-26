@@ -10,5 +10,8 @@ releases/
 .vscode/
 gmail-tokens.json
 
+# Environment variables with secrets (NEVER COMMIT!)
+.env
+
 # User-specific rules
 user-rules.json
