@@ -128,7 +128,21 @@ const GMAIL_SUSPICIOUS_KEYWORDS = [
   'login from new device',
   'tax refund',
   'banking alert',
-  'invoice attached'
+  'invoice attached',
+  // Classic lottery/prize scams
+  'you won',
+  'you\'ve won',
+  'congratulations',
+  'winner',
+  'lottery',
+  'lottary', // Common typo in scams
+  'claim now',
+  'claim your',
+  'prize',
+  'reward expires',
+  'lucky user',
+  'free money',
+  'cash prize'
 ];
 
 const GMAIL_URGENT_PHRASES = [
@@ -137,10 +151,27 @@ const GMAIL_URGENT_PHRASES = [
   'final notice',
   'avoid penalties',
   'legal action',
-  'security alert'
+  'security alert',
+  'expires today',
+  'expires soon',
+  'limited time',
+  'hurry up'
 ];
 
 const GMAIL_SUSPICIOUS_TLDS = ['.ru', '.cn', '.zip', '.xyz', '.top', '.loan', '.click', '.lol'];
+
+// Obvious scam patterns (INSTANT HIGH RISK)
+const SCAM_PATTERNS = [
+  /congratulations.*won/i,
+  /you.*won.*lottery/i,
+  /claim.*reward/i,
+  /winner.*chicken.*dinner/i, // Your demo example!
+  /lucky.*user/i,
+  /🤑/g, // Money-mouth emoji spam
+  /💰/g, // Money bag emoji
+  /\b(claim|click|tap).*now.*before/i,
+  /reward.*expires/i
+];
 
 // ============================================================================
 // WINDOW CREATION (Avani's UI)
@@ -315,6 +346,27 @@ async function evaluateMessageRisk({ subject, snippet, fromAddress }) {
   const snippetLower = (snippet || '').toLowerCase();
   const email = parseEmailAddress(fromAddress || '');
   const senderName = parseEmailName(fromAddress || '');
+
+  // FIRST: Check for obvious scam patterns (lottery, prizes, etc.)
+  const fullText = `${subject} ${snippet}`.toLowerCase();
+  let hasScamPattern = false;
+  SCAM_PATTERNS.forEach((pattern) => {
+    if (pattern.test(fullText)) {
+      reasons.push(`🚨 OBVIOUS SCAM: Classic lottery/prize scam pattern`);
+      hasScamPattern = true;
+    }
+  });
+
+  // Check for excessive emoji spam (scam indicator)
+  const emojiCount = (fullText.match(/[🤑💰💸💵💴💶💷]/g) || []).length;
+  if (emojiCount >= 3) {
+    reasons.push(`🚨 Emoji spam (${emojiCount} money emojis)`);
+  }
+
+  // Check for all caps subject (scam tactic)
+  if (subject && subject === subject.toUpperCase() && subject.length > 10) {
+    reasons.push(`EXCESSIVE CAPS (screaming = scam tactic)`);
+  }
 
   // Email Authenticity Verification
   try {
