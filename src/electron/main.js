@@ -2,7 +2,7 @@
 // Real-time scam detection with URLScan.io, Gmail monitoring, and clipboard/window tracking
 
 // CRITICAL: Load Electron FIRST before any other modules (including dotenv)
-const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, desktopCapturer, globalShortcut } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, desktopCapturer, globalShortcut, Notification } = require('electron');
 
 // Now load other modules
 require('dotenv').config();
@@ -18,6 +18,7 @@ const { enrichWithScrapedMetadata } = require('../core/scraper');
 const { scoreRisk } = require('../core/scorer');
 const { ClipboardMonitor } = require('../core/clipboard-monitor');
 const { ScreenOCRMonitor } = require('../core/screen-ocr-monitor');
+const { RekaScreenMonitor } = require('../core/reka-screen-monitor');
 const { URLFilter } = require('../core/url-filter');
 const { scanQueue } = require('../core/scan-queue');
 const { scanScreenshotForURLs } = require('../core/screen-ocr');
@@ -56,6 +57,7 @@ let gmailOAuthClient = null;
 // Auto-scanning components
 let clipboardMonitor;
 let screenOCRMonitor;
+let rekaScreenMonitor = null; // Initialize immediately
 let activeWindowMonitorInterval;
 let scanHistory;
 const urlFilter = new URLFilter();
@@ -69,6 +71,15 @@ urlFilter.loadUserRules();
 
 // Track last seen URL to avoid duplicate scans
 let lastActiveWindowUrl = null;
+
+// Settings from renderer process
+let appSettings = {
+  gmailScan: true, // Default to enabled
+  urlScan: true,
+  sound: true,
+  notifications: true,
+  educational: true
+};
 
 // Gmail constants
 const GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
@@ -105,17 +116,30 @@ const GMAIL_SUSPICIOUS_TLDS = ['.ru', '.cn', '.zip', '.xyz', '.top', '.loan', '.
 
 // Create the control panel window
 function createControlWindow() {
+  // Get screen dimensions to center the window
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+
+  const windowWidth = 600;
+  const windowHeight = 550;
+
   controlWindow = new BrowserWindow({
-    width: 400,
-    height: 700,
-    x: 50,
-    y: 50,
-    alwaysOnTop: true,
+    width: windowWidth,
+    height: windowHeight,
+    minWidth: 500,
+    minHeight: 450,
+    x: Math.floor((screenWidth - windowWidth) / 2),
+    y: Math.floor((screenHeight - windowHeight) / 2),
+    alwaysOnTop: false, // Don't stay on top for better UX
     resizable: true,
-    transparent: true,
-    vibrancy: 'ultra-dark', // macOS only - creates native dark blur
+    transparent: true, // Enable transparency for elegant glass effect
     backgroundColor: '#00000000', // Transparent background
     hasShadow: true,
+    frame: false, // Frameless for custom design
+    titleBarStyle: 'customButtonsOnHover', // Hide traffic lights until hover
+    titleBarOverlay: false,
+    roundedCorners: true, // macOS: rounded corners
+    vibrancy: 'under-window', // macOS glass effect
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -126,7 +150,7 @@ function createControlWindow() {
   controlWindow.loadFile(path.join(__dirname, 'control.html'));
 
   // Open DevTools for debugging
-  // controlWindow.webContents.openDevTools({ mode: 'detach' });
+  controlWindow.webContents.openDevTools({ mode: 'detach' });
 
   controlWindow.on('closed', () => {
     controlWindow = null;
@@ -304,6 +328,15 @@ async function refreshGmailData(oauthClient) {
     return payload;
   }
 
+  // Check if Gmail scanning is enabled in settings
+  if (!appSettings.gmailScan) {
+    console.log('[Gmail] Gmail scanning disabled in settings - skipping');
+    gmailSuspiciousMessages = [];
+    const payload = buildGmailStatusPayload();
+    emitGmailStatus();
+    return payload;
+  }
+
   try {
     const client = oauthClient || (await getActiveOAuthClient());
     if (!client) {
@@ -346,6 +379,25 @@ async function refreshGmailData(oauthClient) {
           snippet,
           fromAddress: fromValue
         });
+
+        // Add to scan history
+        if (scanHistory && typeof scanHistory.add === 'function') {
+          try {
+            const riskScore = reasons.length > 0 ? Math.min(reasons.length * 20, 100) : 0;
+            await scanHistory.add({
+              timestamp: Date.now(),
+              source: 'gmail',
+              url: `email:${ref.id}`,
+              riskScore: riskScore,
+              riskLevel: riskScore >= 70 ? 'high' : riskScore >= 40 ? 'medium' : 'low',
+              reason: reasons.length > 0 ? reasons.join(', ') : 'No threats detected',
+              from: fromValue,
+              subject: subject
+            });
+          } catch (error) {
+            console.error('[Gmail] Failed to add email to scan history:', error.message);
+          }
+        }
 
         if (reasons.length) {
           const parsedDate = dateValue ? new Date(dateValue) : null;
@@ -688,6 +740,121 @@ ipcMain.handle('start-monitoring', async () => {
   return { success: true, message: 'Monitoring started' };
 });
 
+// IPC Handler: Hide dashboard after onboarding
+ipcMain.handle('hide-dashboard', async () => {
+  console.log('🙈 Hide dashboard requested (onboarding complete)');
+  if (controlWindow && !controlWindow.isDestroyed()) {
+    controlWindow.hide();
+    return { success: true };
+  }
+  return { success: false };
+});
+
+// IPC Handler: Start Reka AI monitoring
+ipcMain.handle('start-reka-monitor', async () => {
+  console.log('🤖 Start Reka AI monitor requested');
+
+  // Wait for monitor to be initialized (max 5 seconds)
+  for (let i = 0; i < 50; i++) {
+    if (rekaScreenMonitor) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  if (rekaScreenMonitor) {
+    try {
+      const result = await rekaScreenMonitor.start();
+      if (result.success) {
+        console.log('✅ Reka AI monitoring started');
+        return { success: true };
+      } else {
+        console.warn('⚠️ Reka AI start failed:', result.reason);
+        return { success: false, reason: result.reason };
+      }
+    } catch (error) {
+      console.error('❌ Failed to start Reka AI:', error);
+      return { success: false, reason: error.message };
+    }
+  }
+  console.error('❌ Reka monitor not initialized after 5 seconds');
+  return { success: false, reason: 'Monitor not initialized' };
+});
+
+// IPC Handler: Stop Reka AI monitoring
+ipcMain.handle('stop-reka-monitor', async () => {
+  console.log('🛑 Stop Reka AI monitor requested');
+  if (rekaScreenMonitor) {
+    try {
+      rekaScreenMonitor.stop();
+      console.log('✅ Reka AI monitoring stopped');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Failed to stop Reka AI:', error);
+      return { success: false, reason: error.message };
+    }
+  }
+  return { success: false, reason: 'Monitor not initialized' };
+});
+
+// IPC Handler: Set Reka AI scan interval
+ipcMain.handle('set-reka-scan-interval', async (event, interval) => {
+  console.log('⏱️ Set Reka AI scan interval:', interval);
+  if (rekaScreenMonitor) {
+    try {
+      rekaScreenMonitor.setScanInterval(interval);
+      console.log('✅ Reka AI scan interval updated');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Failed to set scan interval:', error);
+      return { success: false, reason: error.message };
+    }
+  }
+  return { success: false, reason: 'Monitor not initialized' };
+});
+
+// IPC Handler: Enable Screen OCR monitoring
+ipcMain.handle('enable-screen-ocr', async () => {
+  console.log('🔍 Enable Screen OCR monitor requested');
+  if (screenOCRMonitor) {
+    try {
+      await screenOCRMonitor.start();
+      console.log('✅ Screen OCR monitoring enabled');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Failed to enable Screen OCR:', error);
+      return { success: false, reason: error.message };
+    }
+  }
+  return { success: false, reason: 'Monitor not initialized' };
+});
+
+// IPC Handler: Disable Screen OCR monitoring
+ipcMain.handle('disable-screen-ocr', async () => {
+  console.log('🛑 Disable Screen OCR monitor requested');
+  if (screenOCRMonitor) {
+    try {
+      await screenOCRMonitor.stop();
+      console.log('✅ Screen OCR monitoring disabled');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Failed to disable Screen OCR:', error);
+      return { success: false, reason: error.message };
+    }
+  }
+  return { success: false, reason: 'Monitor not initialized' };
+});
+
+// IPC Handler: Get settings
+ipcMain.handle('get-settings', async () => {
+  return appSettings;
+});
+
+// IPC Handler: Update settings
+ipcMain.handle('update-settings', async (event, newSettings) => {
+  appSettings = { ...appSettings, ...newSettings };
+  console.log('[ScamShield] Settings updated:', appSettings);
+  return { success: true };
+});
+
 // IPC Handler: Stop monitoring
 ipcMain.handle('stop-monitoring', async () => {
   console.log('🛑 Stop monitoring requested');
@@ -708,6 +875,12 @@ ipcMain.handle('stop-monitoring', async () => {
   if (screenOCRMonitor) {
     await screenOCRMonitor.stop();
     console.log('[ScamShield] Screen OCR monitoring stopped');
+  }
+
+  // Stop Reka AI monitoring
+  if (rekaScreenMonitor) {
+    rekaScreenMonitor.stop();
+    console.log('[ScamShield] Reka AI monitoring stopped');
   }
 
   // Stop active window monitoring
@@ -972,30 +1145,6 @@ function createTray() {
       }
     },
     {
-      label: 'Auto-Scan Screen (OCR) [EXPERIMENTAL]',
-      type: 'checkbox',
-      checked: false,
-      click: async (menuItem) => {
-        if (menuItem.checked) {
-          if (screenOCRMonitor) {
-            console.log('[ScamShield] Starting Screen OCR monitoring (experimental)...');
-            try {
-              await screenOCRMonitor.start();
-              console.log('[ScamShield] Screen OCR monitoring enabled');
-            } catch (error) {
-              console.error('[ScamShield] Failed to start Screen OCR:', error);
-              menuItem.checked = false;
-            }
-          }
-        } else {
-          if (screenOCRMonitor) {
-            await screenOCRMonitor.stop();
-            console.log('[ScamShield] Screen OCR monitoring disabled');
-          }
-        }
-      }
-    },
-    {
       label: '✓ Auto-Scan Active Window',
       type: 'checkbox',
       checked: true,
@@ -1070,6 +1219,36 @@ app.whenReady().then(async () => {
     console.log('[ScamShield] Keyboard shortcut registered: Cmd/Ctrl+Shift+C (toggle UI)');
   } else {
     console.warn('[ScamShield] Failed to register keyboard shortcut');
+  }
+
+  // Register Reka AI scan shortcut (Cmd/Ctrl + Shift + S to scan screen)
+  const rekaScanShortcut = globalShortcut.register('CommandOrControl+Shift+S', async () => {
+    console.log('[ScamShield] Reka AI scan shortcut triggered');
+    if (rekaScreenMonitor && rekaScreenMonitor.enabled) {
+      console.log('[RekaScreen] Manual scan requested via keyboard shortcut');
+
+      // Show notification that scan is starting
+      new Notification({
+        title: 'Scanning Screen',
+        body: 'Analyzing your screen with AI...',
+        silent: true
+      }).show();
+
+      await rekaScreenMonitor.scanScreen();
+    } else {
+      console.warn('[RekaScreen] Cannot scan - Reka AI monitoring not enabled');
+
+      // Show notification that Reka is not enabled
+      new Notification({
+        title: 'Reka AI Not Enabled',
+        body: 'Enable Reka AI in Settings to scan',
+        silent: true
+      }).show();
+    }
+  });
+
+  if (rekaScanShortcut) {
+    console.log('[ScamShield] Keyboard shortcut registered: Cmd/Ctrl+Shift+S (Reka AI screen scan)');
   }
 
   // Initialize scan history
@@ -1172,12 +1351,124 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Initialize Reka AI screen monitoring (AI-powered full-screen analysis)
+  // NOTE: Automatic scanning disabled - use Cmd+Shift+S keyboard shortcut for manual scans
+  rekaScreenMonitor = new RekaScreenMonitor({
+    scanInterval: 999999999, // Disabled - manual scan only via keyboard shortcut
+    alertThreshold: 40, // Alert on risk scores >= 40
+    onThreat: (threat) => {
+      console.log('[ScamShield] Reka AI detected threat:', threat);
+
+      // Create overlay window if it doesn't exist
+      if (!overlayWindow || overlayWindow.isDestroyed()) {
+        createOverlayWindow();
+
+        // Wait for window to be ready before sending message
+        overlayWindow.webContents.once('did-finish-load', () => {
+          overlayWindow.webContents.send('show-warning', {
+            risk: threat.riskScore,
+            reason: threat.summary,
+            timestamp: threat.timestamp,
+            analysis: {
+              signals: threat.threats.map(t => `${t.type}: ${t.description}`),
+              recommendations: [threat.recommendation]
+            }
+          });
+        });
+      } else {
+        // Window already exists, send immediately
+        overlayWindow.webContents.send('show-warning', {
+          risk: threat.riskScore,
+          reason: threat.summary,
+          timestamp: threat.timestamp,
+          analysis: {
+            signals: threat.threats.map(t => `${t.type}: ${t.description}`),
+            recommendations: [threat.recommendation]
+          }
+        });
+      }
+
+      // Log to scan history
+      if (scanHistory && typeof scanHistory.add === 'function') {
+        try {
+          scanHistory.add({
+            timestamp: threat.timestamp,
+            source: 'reka-ai',
+            riskScore: threat.riskScore,
+            riskLevel: threat.riskScore >= 70 ? 'high' : threat.riskScore >= 40 ? 'medium' : 'low',
+            reason: threat.summary,
+            analysis: threat
+          });
+        } catch (error) {
+          console.error('[ScamShield] Failed to add to scan history:', error.message);
+        }
+      }
+    },
+    onAnalysis: (analysis) => {
+      // Log all analyses (even safe ones) for debugging
+      console.log(`[ScamShield] Reka AI analysis: ${analysis.category} (risk: ${analysis.riskScore})`);
+    },
+    onSafe: (result) => {
+      console.log('[ScamShield] Reka AI scan completed - everything safe!');
+
+      // Show notification that scan is complete and safe
+      new Notification({
+        title: 'Screen Scan Complete',
+        body: `Everything looks safe! (Risk: ${result.riskScore}/100)`,
+        silent: true
+      }).show();
+
+      // Log to scan history
+      if (scanHistory && typeof scanHistory.add === 'function') {
+        try {
+          scanHistory.add({
+            timestamp: result.timestamp,
+            source: 'reka-ai',
+            riskScore: result.riskScore,
+            riskLevel: 'low',
+            reason: result.summary || 'No threats detected',
+            analysis: result
+          });
+        } catch (error) {
+          console.error('[ScamShield] Failed to add to scan history:', error.message);
+        }
+      }
+    }
+  });
+
+  // Set up shared screen capture callback for both monitors
+  const captureScreenCallback = async () => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1280, height: 720 } // Good balance for both OCR and AI
+      });
+
+      if (sources.length > 0) {
+        const primarySource = sources.find(s => s.name.includes('Screen')) || sources[0];
+        const thumbnail = primarySource.thumbnail;
+        const pngBuffer = thumbnail.toPNG();
+        return pngBuffer;
+      }
+      return null;
+    } catch (error) {
+      console.error('[ScamShield] Screen capture failed:', error);
+      return null;
+    }
+  };
+
+  // Share capture callback with Reka monitor
+  rekaScreenMonitor.setCaptureCallback(captureScreenCallback);
+
   // Start clipboard monitoring
   clipboardMonitor.start();
   console.log('[ScamShield] Clipboard monitoring started automatically');
 
-  // Screen OCR is disabled by default (experimental feature, can be enabled in tray menu)
-  console.log('[ScamShield] Screen OCR monitoring available (disabled by default - enable in tray menu)');
+  // Screen OCR is disabled by default (experimental feature, can be enabled in Settings)
+  console.log('[ScamShield] Screen OCR monitoring available (disabled by default - enable in Settings)');
+
+  // Reka AI monitoring is disabled by default (requires API key, can be enabled in Settings)
+  console.log('[ScamShield] Reka AI monitoring available (disabled by default - enable in Settings)');
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -1192,6 +1483,9 @@ app.on('window-all-closed', async () => {
   }
   if (screenOCRMonitor) {
     await screenOCRMonitor.stop();
+  }
+  if (rekaScreenMonitor) {
+    rekaScreenMonitor.stop();
   }
   if (activeWindowMonitorInterval) {
     clearInterval(activeWindowMonitorInterval);

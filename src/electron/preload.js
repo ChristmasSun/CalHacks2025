@@ -55,5 +55,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   enableDemoMode: () => ipcRenderer.invoke('enable-demo-mode'),
   disableDemoMode: () => ipcRenderer.invoke('disable-demo-mode'),
   startDemoAutoScan: () => ipcRenderer.invoke('start-demo-auto-scan'),
-  stopDemoAutoScan: () => ipcRenderer.invoke('stop-demo-auto-scan')
+  stopDemoAutoScan: () => ipcRenderer.invoke('stop-demo-auto-scan'),
+
+  // Dashboard control
+  hideDashboard: () => ipcRenderer.invoke('hide-dashboard'),
+
+  // Reka AI Monitor control
+  startRekaMonitor: () => ipcRenderer.invoke('start-reka-monitor'),
+  stopRekaMonitor: () => ipcRenderer.invoke('stop-reka-monitor'),
+  setRekaScanInterval: (interval) => ipcRenderer.invoke('set-reka-scan-interval', interval),
+
+  // Screen OCR Monitor control
+  enableScreenOCR: () => ipcRenderer.invoke('enable-screen-ocr'),
+  disableScreenOCR: () => ipcRenderer.invoke('disable-screen-ocr'),
+
+  // Settings
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  updateSettings: (settings) => ipcRenderer.invoke('update-settings', settings)
 });

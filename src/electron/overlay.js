@@ -40,17 +40,17 @@ function showWarning(warning) {
 
   // Determine severity class
   let severityClass = 'high';
-  let icon = '⚠️';
+  let icon = ''; // No emoji
 
   if (risk > 70) {
     severityClass = 'high';
-    icon = '🚨';
+    icon = '';
   } else if (risk > 40) {
     severityClass = 'medium';
-    icon = '⚠️';
+    icon = '';
   } else {
     severityClass = 'low';
-    icon = 'ℹ️';
+    icon = '';
   }
 
   console.log(`📍 Badge severity: ${severityClass} (${risk}%)`);
@@ -247,11 +247,6 @@ function showNotification(result) {
   // Play sound effect
   playSoundEffect(result.risk);
 
-  // Trigger confetti celebration for very safe URLs
-  if (result.risk < 20) {
-    triggerConfetti();
-  }
-
   const notification = document.createElement('div');
   notification.id = notificationId;
   notification.className = `notification ${notificationType}`;
@@ -310,36 +305,6 @@ function closeNotification(notificationId) {
         notificationContainer.style.pointerEvents = 'none';
       }
     }, 300);
-  }
-}
-
-// Trigger confetti celebration
-function triggerConfetti() {
-  const colors = ['#0a84ff', '#32d74b', '#ff9f0a', '#5ac8fa', '#bf5af2', '#ff453a'];
-  const confettiCount = 40;
-
-  for (let i = 0; i < confettiCount; i++) {
-    setTimeout(() => {
-      const confetti = document.createElement('div');
-      confetti.style.position = 'fixed';
-      confetti.style.width = '10px';
-      confetti.style.height = '10px';
-      confetti.style.borderRadius = '50%';
-      confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-      confetti.style.left = Math.random() * 100 + '%';
-      confetti.style.top = '0';
-      confetti.style.zIndex = '100000';
-      confetti.style.pointerEvents = 'none';
-
-      const duration = Math.random() * 2 + 2;
-      const delay = Math.random() * 0.5;
-      confetti.style.animation = `confetti-fall ${duration}s ease-out ${delay}s forwards`;
-
-      document.body.appendChild(confetti);
-
-      // Remove after animation
-      setTimeout(() => confetti.remove(), (duration + delay) * 1000 + 500);
-    }, i * 50);
   }
 }
 
