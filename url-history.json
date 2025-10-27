@@ -304,5 +304,167 @@
     "riskScore": 15,
     "riskLevel": "low",
     "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://bcd.com/",
+    "fingerprint": "a02bbbddc1ef153b4d5ca63a099ee33dc104a89e18747721e88a5900edb9244a",
+    "timestamp": 1761465162978,
+    "scanDate": "2025-10-26T07:52:42.978Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "http://hello-malware.com/",
+    "fingerprint": "54a6bc18aafa2b9ef35b9f4d66ac7c10c114c1ab1e393552b7549df482c03928",
+    "timestamp": 1761465163014,
+    "scanDate": "2025-10-26T07:52:43.014Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://fshopify.com",
+    "fingerprint": "08e52084e89c875308c4d22705eb052a0aad22c73142113bd2f7fb3746f42433",
+    "timestamp": 1761465657124,
+    "scanDate": "2025-10-26T08:00:57.124Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "http://shopify.com",
+    "fingerprint": "784dd4950e21767cf96a9771c14141d7d0a4e4b5320432bc818dbe671bd283b8",
+    "timestamp": 1761465685713,
+    "scanDate": "2025-10-26T08:01:25.713Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "http://spotifynovaprimes-gp.ctws/en",
+    "fingerprint": "4546199f19ab2f3873fe09bcd0ef380b8bcc544f75b606b06c1c63fdc4b4a0a1",
+    "timestamp": 1761465717423,
+    "scanDate": "2025-10-26T08:01:57.423Z",
+    "riskScore": 65,
+    "riskLevel": "medium",
+    "summary": "Moderate risk indicators present. Proceed with strong caution."
+  },
+  {
+    "url": "http://spotifynovaprimes-gp.ct.ws/en",
+    "fingerprint": "07cac86f658c64f266b51001a6bb5c2872fdc38329bfb0203aa97884e1df1b13",
+    "timestamp": 1761465780325,
+    "scanDate": "2025-10-26T08:03:00.325Z",
+    "riskScore": 65,
+    "riskLevel": "medium",
+    "summary": "Moderate risk indicators present. Proceed with strong caution."
+  },
+  {
+    "url": "https://htteishopify.com",
+    "fingerprint": "eed0325e9d21d22eff346249e7d4c03ef253c9e0a5d8881322307103baacce5c",
+    "timestamp": 1761465945488,
+    "scanDate": "2025-10-26T08:05:45.488Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://vedanand@stanford.edu",
+    "fingerprint": "002a7bd601c5ad5daec5d974ed80cec1675b2322294bb27780635d823eb2eabd",
+    "timestamp": 1761465972597,
+    "scanDate": "2025-10-26T08:06:12.597Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://1.04.55",
+    "fingerprint": "e239efcc88f17ccc4d41e605e68bf5eb1d0efd97d544e3d2788060d5e2dc994b",
+    "timestamp": 1761466010102,
+    "scanDate": "2025-10-26T08:06:50.102Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://AM.mov",
+    "fingerprint": "34081f0505c27335e52a9a7cd6051522a0006703b39f64594b34d689155be73c",
+    "timestamp": 1761466011250,
+    "scanDate": "2025-10-26T08:06:51.250Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://protego-icon.png",
+    "fingerprint": "8c4ffe94cf303dee4dcf1295c1b25d44f57c40ac6d0f7702226148763c28c3ad",
+    "timestamp": 1761466243749,
+    "scanDate": "2025-10-26T08:10:43.749Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://control.js",
+    "fingerprint": "712288538753fb7b10e0542847b8a5334109bea57fcd63ef63558d98135951c2",
+    "timestamp": 1761466245545,
+    "scanDate": "2025-10-26T08:10:45.545Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://index.html",
+    "fingerprint": "821145537233b9fea6aba23fca71ac046280bc677f4da869b3d6fce59cbe7b6e",
+    "timestamp": 1761466248213,
+    "scanDate": "2025-10-26T08:10:48.213Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://renderer.js",
+    "fingerprint": "6b1d62cce7a766a70b607dbb66acef3e1abadbc9ffdfa25a51228410c3a77754",
+    "timestamp": 1761466249688,
+    "scanDate": "2025-10-26T08:10:49.688Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://porson-variiier.is",
+    "fingerprint": "e4b84a10fbfbcecfe4ccdbec48f1b93ef7efa0b10bf7f97ab674626505500bd6",
+    "timestamp": 1761466252564,
+    "scanDate": "2025-10-26T08:10:52.564Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://sandbox.js",
+    "fingerprint": "3cea6953c536214329ae82e41d566b80d1ca2bfbd5f4b37b3d88b968ffcc9034",
+    "timestamp": 1761466253614,
+    "scanDate": "2025-10-26T08:10:53.614Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://shopify.com",
+    "fingerprint": "d90cd7304a1a1d364ce6a8eafa0f0d055092cf91a820e324598bc7e77220eefe",
+    "timestamp": 1761466278262,
+    "scanDate": "2025-10-26T08:11:18.262Z",
+    "riskScore": 15,
+    "riskLevel": "low",
+    "summary": "Low risk detected, but remain vigilant for unexpected changes."
+  },
+  {
+    "url": "https://spotifynovaprimes-gp.ctws",
+    "fingerprint": "293bf8a0c260fcbadfc946c517fd21595424e30262e6a1b24ca88ba4d02508ba",
+    "timestamp": 1761466278275,
+    "scanDate": "2025-10-26T08:11:18.275Z",
+    "riskScore": 65,
+    "riskLevel": "medium",
+    "summary": "Moderate risk indicators present. Proceed with strong caution."
   }
 ]

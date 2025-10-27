@@ -1,17 +1,33 @@
 node_modules/
+
 dist/
+
 out/
+
 build/
+
 releases/
+
 *.log
+
 *.tgz
+
 .DS_Store
+
 .idea/
+
 .vscode/
+
 gmail-tokens.json
 
+
+
 # Environment variables with secrets (NEVER COMMIT!)
-.env
+
+
+
 
 # User-specific rules
+
 user-rules.json
+config.bat
